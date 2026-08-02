@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Comptes & Budget">
+  <rect width="64" height="64" rx="14" fill="#00a8a9"/>
+  <path d="M20 42V26M32 42V18M44 42V32" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#fff" stroke-width="0"/>
+</svg>

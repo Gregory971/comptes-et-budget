@@ -1,0 +1,404 @@
+:root{
+  --bg:#ffffff; --topbar:#2156b8; --topbar-d:#1b4798; --accent:#2156b8;
+  --txt:#1f2a37; --muted:#6b7785; --line:#e3e8ef; --row-alt:#f5f7fa;
+  --green:#1a9d5a; --red:#d6453b; --orange:#f5a623;
+}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+button{font-family:inherit;cursor:pointer}
+input,select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fff;color:var(--txt);width:100%}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field{margin-bottom:12px}
+.btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:7px;font-weight:600}
+.btn:hover{background:var(--topbar-d)}
+.btn.ghost{background:#fff;color:var(--txt);border:1px solid var(--line)}
+.btn.ghost:hover{background:#eef2f6}
+.muted{color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center}
+.grid{display:grid;gap:14px}.grid.two{grid-template-columns:1fr 1fr}
+@media(max-width:760px){.grid.two{grid-template-columns:1fr}}
+
+/* ---- Top bar (barre bleue) ---- */
+.shell{display:flex;flex-direction:column;height:100vh}
+.topbar{background:var(--topbar);display:flex;align-items:stretch;color:#fff;height:74px;flex-shrink:0}
+.topbar .multi{background:var(--orange);color:#fff;font-size:11px;font-weight:700;width:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.15;gap:2px;border:none}
+.topnav{display:flex;align-items:center;gap:2px;padding:0 8px;flex:1;overflow-x:auto}
+.topnav button{background:none;border:none;color:#cfe0ff;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 12px;border-radius:8px;font-size:12px;min-width:62px}
+.topnav button .ic{font-size:20px}
+.topnav button:hover{background:var(--topbar-d);color:#fff}
+.topnav button.active{background:#fff;color:var(--topbar)}
+.search{display:flex;align-items:center;gap:8px;padding:0 14px}
+.search input{width:230px;border-radius:18px}
+
+/* ---- Body : colonne actions + contenu ---- */
+.body{display:flex;flex:1;min-height:0}
+.actions{width:170px;background:#fbfcfe;border-right:1px solid var(--line);padding:14px 10px;flex-shrink:0;overflow-y:auto}
+.cur-badge{border:1px solid var(--accent);color:var(--accent);font-weight:700;text-align:center;border-radius:16px;padding:4px 0;margin-bottom:14px}
+.act{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--accent);padding:9px 8px;border-radius:7px;font-size:14px;text-align:left}
+.act:hover{background:#eaf0fb}
+.act.disabled{color:#b6c0cc;cursor:default}
+.act.disabled:hover{background:none}
+.act .ic{font-size:16px;width:18px;text-align:center}
+.act-sep{height:1px;background:var(--line);margin:10px 4px}
+.content{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.content-pad{padding:16px 20px;overflow:auto}
+
+/* ---- Filtres haut ---- */
+.toolbar2{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.selbox{min-width:230px}
+.monthnav{display:flex;align-items:center;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.monthnav button{background:#eef2f6;border:none;padding:7px 14px;font-size:15px}
+.monthnav button:hover{background:#e0e6ee}
+.monthnav .lbl{padding:7px 18px;min-width:130px;text-align:center;text-transform:capitalize;font-weight:600}
+
+/* ---- Tableau dense ---- */
+.opstable{width:100%;border-collapse:collapse}
+.opstable th{background:#f0f3f7;color:var(--muted);font-size:11px;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.opstable td{padding:8px 10px;border-bottom:1px solid #eef1f5;font-size:13px;white-space:nowrap}
+.opstable tr:nth-child(even) td{background:var(--row-alt)}
+.opstable tr:hover td{background:#eaf3ff}
+.opstable .num{text-align:right;font-variant-numeric:tabular-nums}
+.neg{color:var(--red)}.pos{color:var(--green)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.dot.bank{background:var(--orange)}
+.dot.g{background:var(--green)}.dot.r{background:var(--red)}
+.cat-cell{display:flex;align-items:center;gap:9px}
+.cat-cell .em{font-size:16px}
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#eef2f6;color:var(--muted)}
+.chip.dep{background:#fdeceb;color:var(--red)}.chip.rec{background:#e8f6ee;color:var(--green)}
+
+/* ---- Barre solde bas ---- */
+.statusbar{display:flex;align-items:center;gap:18px;padding:8px 16px;border-top:1px solid var(--line);background:#fbfcfe;flex-shrink:0}
+.solde-pill{display:flex;flex-direction:column;align-items:center;color:#fff;border-radius:8px;padding:5px 16px;font-weight:700}
+.solde-pill small{font-weight:400;opacity:.9}
+.solde-pill.bank{background:var(--green)}
+.solde-pill.point{background:var(--red)}
+.statusbar .right{margin-left:auto;color:var(--muted)}
+
+/* ---- Cartes / pages génériques ---- */
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.page-title{font-size:20px;font-weight:700;margin:0 0 4px}
+.page-sub{color:var(--muted);margin:0 0 18px}
+.balance{font-size:30px;font-weight:800}.balance.pos{color:var(--green)}.balance.neg{color:var(--red)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{background:none;border:none;padding:9px 13px;color:var(--muted);border-bottom:2px solid transparent;font-weight:600}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+table.simple{width:100%;border-collapse:collapse}
+table.simple th,table.simple td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
+.inline{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.inline .field{margin:0}.inline .grow{flex:1;min-width:140px}
+.iconbtn{background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted)}
+.iconbtn:hover{color:var(--red)}
+.sub-list{margin:4px 0 0;padding-left:18px}
+.sub-list li{display:flex;justify-content:space-between;padding:4px 0;list-style:none}
+
+/* ---- Onboarding ---- */
+.onb{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2156b8,#0f1b2d)}
+.onb .box{background:#fff;border-radius:16px;padding:32px;width:420px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.onb h1{margin:0 0 6px;font-size:22px}.onb p.lead{color:var(--muted);margin:0 0 20px}
+.steps{display:flex;gap:6px;margin-bottom:20px}.steps span{flex:1;height:4px;border-radius:2px;background:var(--line)}.steps span.on{background:var(--accent)}
+
+/* ---- Marque mini dans la barre ---- */
+.brandmini{color:#fff;font-weight:700;font-size:13px;display:flex;flex-direction:column;justify-content:center;padding:0 14px 0 6px;line-height:1.1;white-space:nowrap}
+.brandmini small{font-weight:400;font-size:11px;opacity:.85}
+
+/* ---- Modale sélecteur de profils ---- */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,27,45,.45);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:#fff;border-radius:14px;padding:22px;width:460px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.base-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.base-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px;font-size:14px;cursor:pointer}
+.base-item:hover{background:#f3f6fb}
+.base-item.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(33,86,184,.15)}
+.prof-dot{width:10px;height:10px;border-radius:50%}
+.prof-dot.perso{background:#2156b8}.prof-dot.pro{background:#00a8a9}
+
+/* ---- THÈME PRO : charte ATPro Guadeloupe ---- */
+[data-theme="pro"]{
+  --topbar:#00a8a9; --topbar-d:#007778; --accent:#00a8a9;
+  --row-alt:#e4f7f7;
+  font-family:'Open Sans','Segoe UI',Arial,sans-serif;
+}
+[data-theme="pro"] .topnav button.active{color:#00a8a9}
+[data-theme="pro"] .opstable th{background:#00a8a9;color:#fff}
+[data-theme="pro"] .opstable tr:hover td{background:#d3f0f0}
+[data-theme="pro"] .multi{background:#005758}
+[data-theme="pro"] .cur-badge{border-color:#00a8a9;color:#00a8a9}
+[data-theme="pro"] .act{color:#007778}
+[data-theme="pro"] .act:hover{background:#e4f7f7}
+[data-theme="pro"] .monthnav .lbl{color:#005758}
+
+/* Logo ATPro (mode pro) */
+/* Logo ATPro (mode pro) */
+.atpro-badge{display:flex;align-items:center;background:#fff;border-radius:10px;padding:5px 12px;margin:0 12px 0 6px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.atpro-logo{height:48px;width:auto}
+
+/* Sélection de ligne (Opérations) */
+.opstable tr{cursor:pointer}
+.opstable tr.sel td{background:#dbeafe !important;box-shadow:inset 3px 0 0 var(--accent)}
+[data-theme="pro"] .opstable tr.sel td{background:#cdeeee !important;box-shadow:inset 3px 0 0 #00a8a9}
+.table-scroll{overflow:auto}
+
+/* =========================================================
+   RESPONSIVE — tablette & mobile
+   ========================================================= */
+@media(max-width:900px){
+  .topbar{height:auto;flex-wrap:wrap}
+  .search{display:none}
+  .atpro-badge{margin:6px}
+}
+@media(max-width:760px){
+  .topbar{flex-wrap:nowrap}
+  .multi{width:64px;font-size:10px}
+  .topnav{padding:0 4px}
+  .topnav button{min-width:54px;padding:6px 8px;font-size:11px}
+  .topnav button .ic{font-size:18px}
+  .brandmini{display:none}
+
+  /* colonne d'actions -> barre horizontale défilante en haut du contenu */
+  .body{flex-direction:column}
+  .actions{width:auto;display:flex;flex-direction:row;gap:4px;overflow-x:auto;border-right:none;
+    border-bottom:1px solid var(--line);padding:8px 10px;align-items:center}
+  .cur-badge{margin:0 6px 0 0;padding:4px 10px;flex-shrink:0}
+  .act{flex-direction:column;gap:3px;min-width:62px;padding:6px 6px;font-size:11px;white-space:nowrap;flex-shrink:0;text-align:center}
+  .act .ic{font-size:18px;width:auto}
+  .act-sep{width:1px;height:34px;margin:0 4px}
+
+  .content-pad{padding:12px}
+  .toolbar2{padding:10px 12px;gap:8px}
+  .selbox{min-width:0;flex:1}
+  .monthnav{width:100%;justify-content:center}
+
+  /* tableaux denses : scroll horizontal, police réduite */
+  .opstable{font-size:12px;min-width:560px}
+  .opstable th,.opstable td{padding:7px 8px}
+
+  .grid.two{grid-template-columns:1fr}
+  .modal{width:94vw !important;padding:18px}
+  .statusbar{flex-wrap:wrap;gap:10px}
+  .statusbar .right{width:100%;margin-left:0;font-size:12px}
+  .page-title{font-size:18px}
+  .inline{gap:8px}
+  .inline .field{min-width:120px}
+}
+@media(max-width:480px){
+  .topnav button{min-width:46px;font-size:0}      /* mobile étroit : icônes seules */
+  .topnav button .ic{font-size:20px}
+  .multi{font-size:0;width:48px}
+  .multi::before{content:'🔒';font-size:18px}
+  .solde-pill{padding:5px 12px;font-size:13px}
+}
+
+/* ---- Ajouts V2 : accessibilité et composants partagés ---- */
+
+/* Contenu réservé aux lecteurs d'écran (légendes de tableaux, libellés de champs). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Indicateur de focus visible au clavier — absent de la version précédente. */
+:focus-visible {
+  outline: 2px solid var(--accent, #00a8a9);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Boutons réellement désactivés (l'ancienne classe .disabled n'était que visuelle,
+   les boutons restaient focusables et cliquables au clavier). */
+.act:disabled, .btn:disabled, .iconbtn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Ligne de tableau sélectionnable au clavier. */
+.opstable tbody tr { cursor: pointer; }
+.opstable tbody tr:focus-visible { outline: 2px solid var(--accent, #00a8a9); outline-offset: -2px; }
+
+/* Bouton de pointage dans la colonne « État ». */
+.statebtn {
+  background: none; border: none; padding: 2px 4px; cursor: pointer;
+  font-size: 15px; line-height: 1; border-radius: 4px;
+}
+
+/* Bouton présenté comme un lien (remplace les <a onClick> sans href). */
+.linklike {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--accent, #00a8a9); font: inherit; text-decoration: underline;
+}
+
+/* Barre de progression (budgets, projets d'épargne). */
+.progress {
+  height: 9px; background: #eef2f6; border-radius: 5px;
+  margin-top: 5px; overflow: hidden;
+}
+
+.inline-check {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 400; color: var(--muted, #6b7785); margin: 8px 0;
+  cursor: pointer;
+}
+
+.modal:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---- Ajouts V2.1 : échéances complètes et saisie enrichie ---- */
+
+/* Groupes de réglages du formulaire d'échéance (Planifier / Comptabiliser /
+   Règle en cas de jour férié), repris de l'ergonomie du logiciel de référence. */
+.fs {
+  border: 1px solid var(--line, #e3e8ef);
+  border-radius: 8px;
+  padding: 10px 14px 14px;
+  margin: 14px 0 0;
+  min-width: 0;   /* empêche tout débordement du contenu hors du cadre */
+}
+.fs .field:last-child { margin-bottom: 0; }
+.fs > legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #6b7785);
+}
+
+/* Cases à cocher et boutons radio.
+   La règle globale « input,select{width:100%} » (ligne 10) leur appliquait une
+   largeur pleine, une bordure et un padding : le bouton occupait la moitié de la
+   ligne et rejetait le libellé hors du cadre. */
+input[type="radio"],
+input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.radio-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--txt);
+  cursor: pointer;
+  margin-bottom: 0;
+}
+.radio-row input { margin-top: 3px; }
+.radio-row > span { flex: 1; min-width: 0; }
+.radio-row strong { font-weight: 600; }
+
+/* Aperçu des prochaines comptabilisations, report des jours fériés inclus. */
+.preview {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f4f6f8;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.preview strong { display: block; margin-bottom: 4px; font-size: 12px; }
+.preview ul { margin: 0; padding-left: 18px; }
+.preview li { padding: 1px 0; }
+
+/* Bandeau d'information non bloquant (comptabilisation automatique effectuée). */
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  background: var(--accent, #00a8a9);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+  font-size: 13px;
+}
+.toast .linklike { color: #fff; }
+
+hr.sep {
+  border: none;
+  border-top: 1px solid var(--line, #e3e8ef);
+  margin: 18px 0;
+}
+
+details > summary { color: var(--muted, #6b7785); }
+details[open] > summary { margin-bottom: 4px; }
+
+/* ---- Ajouts V2.2 : affichage prévisionnel des opérations ---- */
+
+/* Bascule Réel / Prévisionnel dans la barre d'outils. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.segmented button {
+  background: #fff;
+  border: none;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button.on { background: var(--accent); color: #fff; }
+.segmented button:not(.on):hover { background: #eef2f6; }
+
+/* Bandeau de synthèse : réel + échéances − reste à vivre = solde estimé. */
+.forecast-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #f4f7fb;
+  border-bottom: 1px solid var(--line);
+}
+.forecast-bar > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 12px;
+  min-width: 150px;
+}
+.forecast-bar small { font-size: 11px; color: var(--muted); }
+.forecast-bar strong { font-size: 17px; font-weight: 700; }
+.forecast-bar em { font-size: 10px; color: var(--muted); font-style: normal; }
+.forecast-bar .op {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  color: var(--muted);
+}
+.forecast-bar .total {
+  border-left: 2px solid var(--accent);
+  background: #fff;
+  border-radius: 0 7px 7px 0;
+}
+.forecast-bar .pos { color: var(--green); }
+.forecast-bar .neg { color: var(--red); }
+
+/* Lignes prévisionnelles : grisées et en italique, non sélectionnables. */
+.opstable tr.prevu { cursor: default; background: #fbfcfe; color: var(--muted); }
+.opstable tr.prevu td { font-style: italic; }
+.opstable tr.prevu .num { font-style: normal; }
+.opstable tr.prevu:hover { background: #f4f7fb; }
+/* Les estimations budgétaires sont plus effacées que les échéances certaines. */
+.opstable tr.prevu.estime td { opacity: .8; }
+.opstable tr.prevu.estime { border-left: 3px dashed var(--orange); }
+.dot.prevu { background: var(--orange); }
+
+.solde-pill.est { border-color: var(--orange); }

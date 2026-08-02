@@ -1,0 +1,24 @@
+# Dépendances
+node_modules/
+
+# Résultats de construction
+dist/
+dist-single/
+dev-dist/
+*.tsbuildinfo
+
+# Sauvegardes de l'application — données personnelles, à ne jamais publier
+*.cbjson
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Journaux et caches
+npm-debug.log*
+yarn-error.log*
+.vite/
+coverage/
+.env
+.env.*
