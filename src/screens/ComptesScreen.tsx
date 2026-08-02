@@ -27,9 +27,26 @@ export function ComptesScreen({ database }: { database: Database }) {
       <h1 className="page-title">Comptes</h1>
       <p className="page-sub">Gérez les propriétés de vos comptes.</p>
 
+      {/* Vue d'ensemble en cartes, reprise de la maquette. Le tableau qui suit
+          reste nécessaire : lui seul porte la modification et l'archivage. */}
+      {actifs.length > 0 && (
+        <div className="acc-grid" style={{ marginTop: 0, marginBottom: 24 }}>
+          {actifs.map(a => {
+            const solde = balances[a.id] ?? a.initialBalanceCents;
+            return (
+              <div className="acc" key={a.id}>
+                <div className="acc-type">{TYPE_LABEL[a.type]}</div>
+                <div className="acc-name"><span aria-hidden="true">{a.logo ?? '🏦'}</span> {a.name}</div>
+                <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatEur(solde)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="card">
         <div className="row" style={{ marginBottom: 10 }}>
-          <strong>Comptes actifs</strong>
+          <strong className="panel-t">Comptes actifs</strong>
           <button className="btn" onClick={() => setCreating(true)}>+ Nouveau compte</button>
         </div>
         <table className="simple">

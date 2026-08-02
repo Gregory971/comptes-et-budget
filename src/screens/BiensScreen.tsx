@@ -6,6 +6,7 @@ import { assetService, projectService } from '../services/patrimoineService';
 import { operationService } from '../services/operationService';
 import { formatEur, type Cents } from '../utils/money';
 import { formatFr, type Ymd } from '../utils/date';
+import { hueOf } from '../utils/hue';
 import type { Asset, AssetType, Database, Project } from '../types';
 
 const EMPTY_LINKS: Record<string, Cents> = {};
@@ -47,6 +48,20 @@ export function BiensScreen({ database }: { database: Database }) {
 
   const patrimoine = assets.reduce((s, a) => s + a.valueCents, 0);
 
+  // Répartition par type de bien, reprise de la barre segmentée de la maquette.
+  // Les types étant libres, on agrège ce qui existe plutôt qu'une liste figée.
+  const repartition = (() => {
+    const parType = new Map<AssetType, number>();
+    for (const a of assets) parType.set(a.type, (parType.get(a.type) ?? 0) + a.valueCents);
+    return [...parType.entries()]
+      .map(([type, valueCents]) => ({
+        // Libellé lisible, comme dans le tableau : « Véhicule », non « vehicule ».
+        label: ASSET_LABEL[type], icon: ASSET_ICON[type], valueCents,
+        pct: patrimoine ? (valueCents / patrimoine) * 100 : 0,
+      }))
+      .sort((x, y) => y.valueCents - x.valueCents);
+  })();
+
   async function addAsset() {
     if (!aName.trim()) { setAError('Le nom du bien est obligatoire.'); return; }
     if (aValue === null) { setAError('Indiquez une valeur (exemple : 15 000).'); return; }
@@ -72,9 +87,35 @@ export function BiensScreen({ database }: { database: Database }) {
       <p className="page-sub">Suivez votre patrimoine et vos projets d’épargne.</p>
 
       <div className="card">
-        <div className="muted">Patrimoine total estimé</div>
-        <div className="balance pos">{formatEur(patrimoine)}</div>
+        <div className="kpi-lbl">Patrimoine total estimé</div>
+        <div className="patri-val">{formatEur(patrimoine)}</div>
+        {repartition.length > 0 && (
+          <div className="patri-bar" role="img"
+            aria-label={`Répartition : ${repartition.map(s => `${s.label} ${s.pct.toFixed(0)} %`).join(', ')}`}>
+            {repartition.map(s => (
+              <div key={s.label} style={{
+                width: s.pct + '%', background: `oklch(0.62 0.14 ${hueOf(s.label)})`,
+              }} />
+            ))}
+          </div>
+        )}
       </div>
+
+      {repartition.length > 0 && (
+        <div className="acc-grid">
+          {repartition.map(s => (
+            <div className="acc" key={s.label}>
+              <div className="patri-head">
+                <span className="patri-dot" aria-hidden="true"
+                  style={{ background: `oklch(0.62 0.14 ${hueOf(s.label)})` }} />
+                <span className="acc-type"><span aria-hidden="true">{s.icon}</span> {s.label}</span>
+              </div>
+              <div className="acc-val">{formatEur(s.valueCents)}</div>
+              <div className="tx-meta">{s.pct.toFixed(1)} % du total</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <strong>Mes biens</strong>

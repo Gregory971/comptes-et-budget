@@ -6,6 +6,7 @@ import { periodRange, reportService } from '../services/reportService';
 import { scheduleService } from '../services/scheduleService';
 import { formatEur } from '../utils/money';
 import { formatFr, today } from '../utils/date';
+import { hueOf } from '../utils/hue';
 import type { Database } from '../types';
 
 /**
@@ -18,13 +19,6 @@ import type { Database } from '../types';
  * exactement ce qui a été mis de côté, sans inventer de notion absente du
  * modèle de données.
  */
-
-/** Teinte stable déduite du nom, pour colorer la pastille d'une catégorie. */
-function hueOf(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
-  return h;
-}
 
 export function HomeScreen({ database }: { database: Database }) {
   const dbId = database.id;

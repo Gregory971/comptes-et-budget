@@ -530,3 +530,20 @@ details[open] > summary { margin-bottom: 4px; }
   .kpis,.acc-grid{grid-template-columns:1fr}
   .page-head{flex-direction:column}
 }
+
+/* ---- Budgets en cartes (maquette) ---- */
+.bud-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.bud{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:22px}
+.bud-cat{font-weight:700;font-size:15px}
+.bud-num{font-size:13px;color:var(--muted);white-space:nowrap}
+.bud .progress{height:10px;border-radius:var(--r-pill);background:var(--track);overflow:hidden}
+.bud-status{font-size:12px;font-weight:600;margin-top:10px;color:var(--muted)}
+
+/* ---- Patrimoine : bandeau segmenté ---- */
+.patri-val{font-family:var(--font-title);font-weight:700;font-size:34px;margin-top:8px;
+  font-variant-numeric:tabular-nums}
+.patri-bar{display:flex;height:16px;border-radius:var(--r-pill);overflow:hidden;margin-top:20px}
+.patri-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.patri-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+@media (max-width:900px){ .bud-grid{grid-template-columns:1fr} }

@@ -57,40 +57,50 @@ export function BudgetScreen({ database }: { database: Database }) {
         )}
       </div>
 
-      <div className="card">
-        <div className="row" style={{ marginBottom: 12 }}>
-          <strong>Suivi des budgets</strong>
-          <span className="muted">{formatEur(totalSpent)} / {formatEur(totalBudget)}</span>
-        </div>
-        {sorted.length === 0 ? <p className="muted">Aucun budget défini.</p> : sorted.map(r => {
-          const cat = ref.cat(r.budget.categoryId);
-          const col = r.percent >= 100 ? 'var(--red)' : r.percent >= 80 ? 'var(--orange)' : 'var(--green)';
-          return (
-            <div key={r.budget.id} style={{ marginBottom: 14 }}>
-              <div className="row">
-                <span><span aria-hidden="true">{cat?.icon}</span> {cat?.name ?? 'Catégorie supprimée'}</span>
-                <span className="muted">
-                  {formatEur(r.spentCents)} / {formatEur(r.budget.monthlyAmountCents)}
-                  <b style={{ color: col, marginLeft: 6 }}>{r.percent.toFixed(0)} %</b>
-                  <button className="iconbtn" style={{ marginLeft: 8 }}
-                    aria-label={`Supprimer le budget ${cat?.name ?? ''}`}
-                    onClick={() => setConfirmRemove(r.budget)}>🗑</button>
-                </span>
-              </div>
-              <div className="progress" role="progressbar" aria-valuenow={Math.round(r.percent)}
-                aria-valuemin={0} aria-valuemax={100}
-                aria-label={`Consommation du budget ${cat?.name ?? ''}`}>
-                <div style={{ width: r.percent + '%', height: '100%', background: col }} />
-              </div>
-              <small className="muted">
-                {r.remainingCents >= 0
-                  ? `Reste ${formatEur(r.remainingCents)} ce mois-ci`
-                  : `Dépassement de ${formatEur(-r.remainingCents)}`}
-              </small>
-            </div>
-          );
-        })}
+      <div className="row" style={{ marginBottom: 14 }}>
+        <strong className="panel-t">Suivi des budgets</strong>
+        <span className="muted">{formatEur(totalSpent)} / {formatEur(totalBudget)}</span>
       </div>
+
+      {sorted.length === 0 ? <p className="muted">Aucun budget défini.</p> : (
+        <div className="bud-grid">
+          {sorted.map(r => {
+            const cat = ref.cat(r.budget.categoryId);
+            const over = r.percent >= 100;
+            // Teintes de la maquette : turquoise tant que la marge est
+            // confortable, corail à l'approche du plafond, rouge au-delà.
+            const hue = over ? 30 : r.percent >= 85 ? 45 : 195;
+            return (
+              <div className="bud" key={r.budget.id}>
+                <div className="row" style={{ alignItems: 'baseline', marginBottom: 12 }}>
+                  <span className="bud-cat">
+                    <span aria-hidden="true">{cat?.icon}</span> {cat?.name ?? 'Catégorie supprimée'}
+                  </span>
+                  <span className="bud-num">
+                    {formatEur(r.spentCents)} / {formatEur(r.budget.monthlyAmountCents)}
+                    <button className="iconbtn" style={{ marginLeft: 8 }}
+                      aria-label={`Supprimer le budget ${cat?.name ?? ''}`}
+                      onClick={() => setConfirmRemove(r.budget)}>🗑</button>
+                  </span>
+                </div>
+                <div className="progress" role="progressbar" aria-valuenow={Math.round(r.percent)}
+                  aria-valuemin={0} aria-valuemax={100}
+                  aria-label={`Consommation du budget ${cat?.name ?? ''}`}>
+                  <div style={{
+                    width: Math.min(100, r.percent) + '%', height: '100%',
+                    borderRadius: 999, background: `oklch(0.62 0.14 ${hue})`,
+                  }} />
+                </div>
+                <div className="bud-status" style={over ? { color: 'var(--red)' } : undefined}>
+                  {r.remainingCents >= 0
+                    ? `${r.percent.toFixed(0)} % utilisé · reste ${formatEur(r.remainingCents)}`
+                    : `Budget dépassé de ${formatEur(-r.remainingCents)}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {confirmRemove && (
         <ConfirmDialog title="Supprimer le budget" danger confirmLabel="Supprimer"
