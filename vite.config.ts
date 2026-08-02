@@ -1,7 +1,29 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { VitePWA } from 'vite-plugin-pwa';
+import { contentSecurityPolicy } from './src/utils/csp';
+
+/**
+ * Injecte la CSP (définie et testée dans src/utils/csp.ts) à la construction
+ * seulement : en développement, Vite a besoin d'un WebSocket et de scripts en
+ * ligne pour le rechargement à chaud.
+ */
+const cspPlugin = (single: boolean): Plugin => ({
+  name: 'comptes-budget:csp',
+  apply: 'build',
+  transformIndexHtml: {
+    order: 'post',
+    handler: () => [{
+      tag: 'meta',
+      attrs: {
+        'http-equiv': 'Content-Security-Policy',
+        content: contentSecurityPolicy(single),
+      },
+      injectTo: 'head-prepend',
+    }],
+  },
+});
 
 /**
  * Deux modes de production :
@@ -26,6 +48,7 @@ export default defineConfig(({ mode }) => {
     base,
     plugins: [
       react(),
+      cspPlugin(single),
       ...(single ? [viteSingleFile()] : [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.svg'],

@@ -93,7 +93,7 @@ première ouverture (migration Dexie v4, testée dans `src/services/migration.te
 
     npm install
     npm run dev            # serveur local
-    npm test               # 88 tests unitaires et d'intégration
+    npm test               # 95 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

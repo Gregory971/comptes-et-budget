@@ -48,6 +48,19 @@ art. L3133-1) et la commémoration de l'abolition de l'esclavage (art. L3422-2) 
 27 mai en Guadeloupe et à Saint-Martin, 22 mai en Martinique, 10 juin en Guyane,
 27 avril à Mayotte, 9 octobre à Saint-Barthélemy, 20 décembre à La Réunion.
 
+## Confidentialité imposée par le navigateur
+
+La promesse « vos données ne quittent jamais votre appareil » ne repose pas sur
+la seule lecture du code : les pages publiées portent une **politique de
+sécurité du contenu** dont la directive `connect-src 'none'` fait refuser par le
+navigateur lui-même toute requête sortante — `fetch`, `XMLHttpRequest`,
+`WebSocket` et `sendBeacon` compris. Une dépendance qui tenterait un jour
+d'émettre vers l'extérieur serait bloquée, sans intervention de votre part.
+
+La politique est définie dans `src/utils/csp.ts` et vérifiée par
+`src/utils/csp.test.ts`, afin qu'un assouplissement ultérieur fasse échouer la
+publication plutôt que de passer inaperçu.
+
 ## Conventions techniques
 
 - **Dates civiles** `AAAA-MM-JJ` (`src/utils/date.ts`), jamais d'horodatage ISO
@@ -62,7 +75,7 @@ art. L3133-1) et la commémoration de l'abolition de l'esclavage (art. L3422-2) 
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 88 tests unitaires et d'intégration
+npm test               # 95 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA
