@@ -45,14 +45,17 @@ describe('application', () => {
   it('affiche l’accueil avec les soldes attendus', async () => {
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Accueil' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Tableau de bord' })).toBeTruthy());
 
     const normalise = (s: string) => s.replace(/[\u00A0\u202F]/g, ' ');
     // 1000 − 250,50 − 100 (virement émis) = 649,50
     await waitFor(() => {
-      const soldes = screen.getAllByText((_, el) =>
-        Boolean(el?.className?.toString().includes('balance')))
-        .map(el => normalise(el.textContent ?? ''));
+      // Le solde total est porté par un indicateur du tableau de bord
+      // (kpi-val), ceux des comptes par les cartes du bas (acc-val).
+      const soldes = screen.getAllByText((_, el) => {
+        const c = el?.className?.toString() ?? '';
+        return c.includes('kpi-val') || c.includes('acc-val');
+      }).map(el => normalise(el.textContent ?? ''));
       // Total : 649,50 + 5100 = 5749,50
       expect(soldes.some(t => t.includes('5 749,50'))).toBe(true);
       expect(soldes.some(t => t.includes('649,50'))).toBe(true);
