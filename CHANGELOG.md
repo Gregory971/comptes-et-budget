@@ -1,5 +1,81 @@
 # Journal des modifications
 
+## Version 2.4.0 — 2 août 2026
+
+Refonte de l'apparence d'après une maquette Claude Design. Les calculs, les
+données et les règles métier sont inchangés : seuls la présentation et
+l'agencement de l'accueil évoluent.
+
+### Une barre latérale à la place du bandeau
+
+La navigation passait par un bandeau bleu horizontal de huit onglets, doublé
+d'une colonne d'actions à gauche du contenu. Elle tient désormais dans une
+**barre latérale sombre** unique : entrées de navigation, actions (Ajouter,
+Voir les opérations, Exporter, Importer) et sélecteur de base y cohabitent.
+Le contenu y gagne toute la largeur restante.
+
+Sous 900 px la barre redevient un bandeau horizontal défilant : la maquette ne
+couvrait que le poste de bureau, or l'application s'installe aussi sur
+téléphone. Les actions y restent visibles — l'écran de saisie ne figurant pas
+dans la navigation, les masquer aurait rendu « Ajouter » inatteignable.
+
+### Palette et typographie
+
+Turquoise en accent principal, corail en secondaire, fond gris-bleu très clair,
+cartes blanches à angles de 18 px, contrôles en pilule. Titres et montants en
+**Space Grotesk**, texte courant en **Manrope**, les montants alignés sur des
+chiffres à chasse fixe.
+
+Les deux familles sont **incorporées à l'application**, non chargées depuis
+Google Fonts comme le faisait la maquette : une police distante violerait la
+politique de sécurité posée en 2.2.1 (`connect-src 'none'`), romprait la
+garantie que rien ne sort de l'appareil et casserait le fonctionnement hors
+ligne. Variables et réduites au sous-ensemble latin — é à ç œ € compris —
+elles pèsent 47 Ko.
+
+Le fichier autonome les porte en base64, faute de quoi elles seraient
+introuvables une fois le fichier ouvert seul. La directive `font-src` n'est
+élargie à `data:` que dans ce mode.
+
+### L'accueil devient un tableau de bord
+
+Quatre indicateurs du mois en tête — solde total, recettes, dépenses, solde du
+mois — puis les dernières opérations et les prochaines échéances côte à côte,
+et les comptes en pied.
+
+Le quatrième indicateur est le **solde** du mois et non une « épargne » comme
+dans la maquette : les virements vers un compte d'épargne étant déjà exclus des
+recettes et dépenses, recettes − dépenses correspond exactement à ce qui a été
+mis de côté. Le nommer autrement aurait supposé une notion absente du modèle.
+
+Chaque opération porte la pastille de sa catégorie, reprenant l'icône choisie
+en 2.3.0 et retombant sur l'initiale à défaut. Sa teinte est déduite du nom de
+la catégorie : stable d'un affichage à l'autre, sans table à tenir à jour.
+
+### Comptes, Budget et Patrimoine
+
+- **Budget** : le suivi passe d'une liste à une grille de cartes à deux
+  colonnes, barre de progression turquoise tant que la marge est confortable,
+  corail à partir de 85 %, rouge au-delà. Le libellé conserve le reste à
+  dépenser, plus utile que le seul pourcentage.
+- **Biens / Projets** : patrimoine total en tête, barre segmentée par type de
+  bien, puis cartes de répartition à pastille colorée et part du total.
+  L'agrégation porte sur les types réellement présents.
+- **Comptes** : grille de cartes en vue d'ensemble. Le tableau est conservé —
+  lui seul porte la modification et l'archivage, absents de la maquette.
+
+### Vérifications
+
+- Contrôlé sur l'application construite, à deux tailles d'écran : mise en page
+  sans débordement, actions accessibles sur téléphone, polices bien
+  incorporées et politique de sécurité respectée dans les deux modes.
+- Éprouvé sur données réelles saisies dans l'application : trois biens de types
+  distincts (83,1 / 11,1 / 5,8 % du patrimoine) et quatre budgets.
+- Un test ajouté sur la directive `font-src` (105 au total). Le parcours de
+  bout en bout suivait le titre « Accueil » et la classe `balance`, tous deux
+  supprimés par la refonte ; il vérifie désormais les mêmes soldes sur la
+  nouvelle structure, sans assertion affaiblie.
+
 ## Version 2.3.0 — 2 août 2026
 
 ### Choix des icônes de catégories
