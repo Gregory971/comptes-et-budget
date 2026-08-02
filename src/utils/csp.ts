@@ -33,7 +33,9 @@ export function contentSecurityPolicy(single: boolean): string {
     "style-src 'self' 'unsafe-inline'",
     // L'icône est une URI `data:` incorporée dans index.html.
     "img-src 'self' data:",
-    "font-src 'self'",
+    // Le fichier autonome porte ses polices en base64 : sans `data:`, elles
+    // seraient bloquées et le texte retomberait sur une police système.
+    single ? "font-src 'self' data:" : "font-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

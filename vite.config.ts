@@ -77,6 +77,10 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: single ? 'dist-single' : 'dist',
       target: 'es2020',
+      // Fichier autonome : les polices doivent être incorporées en base64, sans
+      // quoi elles seraient introuvables une fois le fichier ouvert seul en
+      // file://. En mode servi, on garde des fichiers séparés, mieux mis en cache.
+      assetsInlineLimit: single ? 64 * 1024 : 4096,
       ...(single ? {} : {
         rollupOptions: {
           output: {

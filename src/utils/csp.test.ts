@@ -52,6 +52,13 @@ describe('politique de sécurité du contenu', () => {
     expect(directives(false)['img-src']).toBe("'self' data:");
   });
 
+  it('n’autorise les polices en data: que dans le fichier autonome', () => {
+    // Celui-ci porte ses polices en base64 ; la version servie en HTTP les
+    // charge comme fichiers et n'a aucune raison d'élargir la directive.
+    expect(directives(true)['font-src']).toBe("'self' data:");
+    expect(directives(false)['font-src']).toBe("'self'");
+  });
+
   it('omet frame-ancestors, sans effet en balise meta', () => {
     // Voir csp.ts : l'écrire laisserait croire à une protection inexistante.
     expect(contentSecurityPolicy(false)).not.toContain('frame-ancestors');

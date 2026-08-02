@@ -50,21 +50,33 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
 
   return (
     <div className="shell" data-theme={isPro ? 'pro' : 'perso'}>
-      <div className="topbar">
-        <button className="multi" onClick={() => setShowSwitcher(true)}>Gérer plusieurs comptes</button>
+      <aside className="sidebar">
+        {isPro ? <AtproLogo /> : (
+          <div className="brand">
+            <div className="brand-mark" aria-hidden="true">CB</div>
+            <div className="brand-name">Comptes<br />&amp; Budget
+              <small>{database?.name ?? 'Gestion personnelle'}</small></div>
+          </div>
+        )}
         <nav className="topnav" aria-label="Navigation principale">
-          {isPro ? <AtproLogo /> : (
-            <div className="brandmini">{database?.name ?? 'Comptes'}<small>Gestion personnelle</small></div>
-          )}
           {NAV.map(n => (
             <button key={n.key} className={screen === n.key ? 'active' : ''}
               aria-current={screen === n.key ? 'page' : undefined}
               onClick={() => setScreen(n.key)}>
+              <span className="dot" aria-hidden="true" />
               <span className="ic" aria-hidden="true">{n.ic}</span>{n.label}
             </button>
           ))}
         </nav>
-      </div>
+        <div className="side-foot">
+          <button className="multi" onClick={() => setShowSwitcher(true)}>
+            <span className="avatar" aria-hidden="true">
+              {(database?.name ?? 'C').trim().charAt(0).toUpperCase()}</span>
+            <span>{database?.name ?? 'Comptes'}
+              <small>Gérer plusieurs comptes</small></span>
+          </button>
+        </div>
+      </aside>
       <div className="body">
         <aside className="actions" aria-label="Actions">
           <div className="cur-badge">EUR</div>

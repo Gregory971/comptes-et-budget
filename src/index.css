@@ -1,42 +1,104 @@
+/* Polices incorporées plutôt que chargées depuis Google Fonts : la maquette les
+   servait à distance, ce que la CSP (connect-src 'none', font-src 'self')
+   interdit — et qui romprait aussi le fonctionnement hors ligne. Variables et
+   sous-ensemble latin (é à ç œ €) : 47 Ko pour les deux familles. */
+@font-face{
+  font-family:'Manrope';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url('./fonts/manrope-latin.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Space Grotesk';font-style:normal;font-weight:500 700;font-display:swap;
+  src:url('./fonts/space-grotesk-latin.woff2') format('woff2');
+}
+
 :root{
-  --bg:#ffffff; --topbar:#2156b8; --topbar-d:#1b4798; --accent:#2156b8;
-  --txt:#1f2a37; --muted:#6b7785; --line:#e3e8ef; --row-alt:#f5f7fa;
-  --green:#1a9d5a; --red:#d6453b; --orange:#f5a623;
+  /* Surfaces */
+  --bg:oklch(0.975 0.006 230); --surface:#fff; --row-alt:oklch(0.97 0.005 230);
+  --sidebar:oklch(0.20 0.03 235); --sidebar-card:oklch(0.26 0.03 235);
+  --sidebar-txt:oklch(0.85 0.01 235); --sidebar-dot:oklch(0.55 0.02 235);
+  /* Conservés : d'anciennes règles s'y réfèrent encore. */
+  --topbar:oklch(0.20 0.03 235); --topbar-d:oklch(0.26 0.03 235);
+  /* Accents */
+  --accent:oklch(0.65 0.14 195); --accent-d:oklch(0.55 0.13 195);
+  --second:oklch(0.65 0.14 45);
+  /* Texte */
+  --txt:oklch(0.22 0.02 240); --muted:oklch(0.5 0.02 240); --muted-2:oklch(0.55 0.02 240);
+  /* Lignes */
+  --line:oklch(0.92 0.01 230); --line-soft:oklch(0.94 0.01 230);
+  --field-line:oklch(0.88 0.01 230); --track:oklch(0.93 0.01 230);
+  /* Sémantique */
+  --green:oklch(0.55 0.14 150); --red:oklch(0.6 0.15 30); --orange:oklch(0.65 0.14 45);
+  /* Formes */
+  --r-card:18px; --r-card-sm:16px; --r-ctl:10px; --r-pill:999px; --sidebar-w:264px;
+  --font-title:'Space Grotesk',system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+body{margin:0;font-family:'Manrope',system-ui,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+h1,h2,h3,.num{font-family:var(--font-title)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:oklch(0.85 0.01 230);border-radius:8px}
 button{font-family:inherit;cursor:pointer}
-input,select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fff;color:var(--txt);width:100%}
+input,select{padding:10px 12px;border:1px solid var(--field-line);border-radius:var(--r-ctl);font-size:14px;background:#fff;color:var(--txt);width:100%;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
 .field{margin-bottom:12px}
-.btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:7px;font-weight:600}
+.btn{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:var(--r-pill);font-weight:700;font-size:13px}
 .btn:hover{background:var(--topbar-d)}
 .btn.ghost{background:#fff;color:var(--txt);border:1px solid var(--line)}
-.btn.ghost:hover{background:#eef2f6}
+.btn.ghost:hover{background:var(--row-alt)}
 .muted{color:var(--muted)}
 .row{display:flex;justify-content:space-between;align-items:center}
 .grid{display:grid;gap:14px}.grid.two{grid-template-columns:1fr 1fr}
 @media(max-width:760px){.grid.two{grid-template-columns:1fr}}
 
 /* ---- Top bar (barre bleue) ---- */
-.shell{display:flex;flex-direction:column;height:100vh}
-.topbar{background:var(--topbar);display:flex;align-items:stretch;color:#fff;height:74px;flex-shrink:0}
-.topbar .multi{background:var(--orange);color:#fff;font-size:11px;font-weight:700;width:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.15;gap:2px;border:none}
-.topnav{display:flex;align-items:center;gap:2px;padding:0 8px;flex:1;overflow-x:auto}
-.topnav button{background:none;border:none;color:#cfe0ff;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 12px;border-radius:8px;font-size:12px;min-width:62px}
-.topnav button .ic{font-size:20px}
-.topnav button:hover{background:var(--topbar-d);color:#fff}
-.topnav button.active{background:#fff;color:var(--topbar)}
+/* Barre latérale sombre : la navigation passe de l'horizontale au vertical.
+   Sous 900 px elle repasse en bandeau défilant — la maquette ne couvrait que
+   le bureau, or l'application est aussi installée sur téléphone. */
+.shell{display:flex;height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--sidebar);color:#fff;
+  display:flex;flex-direction:column;padding:28px 20px;gap:32px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;
+  align-items:center;justify-content:center;font-family:var(--font-title);font-weight:700;font-size:18px;flex-shrink:0}
+.brand-name{font-family:var(--font-title);font-weight:700;font-size:18px;line-height:1.1}
+.brand-name small{display:block;font-weight:500;font-size:12px;opacity:.65}
+.topnav{display:flex;flex-direction:column;gap:4px}
+.topnav button{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-ctl);
+  background:none;border:none;color:var(--sidebar-txt);font-size:15px;font-weight:600;text-align:left;width:100%}
+.topnav button .dot{width:6px;height:6px;margin:0;border-radius:50%;background:var(--sidebar-dot);flex-shrink:0}
+.topnav button .ic{font-size:16px}
+.topnav button:hover{background:var(--sidebar-card);color:#fff}
+.topnav button.active{background:var(--accent);color:#fff}
+.topnav button.active .dot{background:#fff}
+.nav-badge{margin-left:auto;background:var(--second);color:#fff;font-size:11px;font-weight:700;
+  border-radius:var(--r-pill);padding:2px 8px}
+.topnav button.active .nav-badge{background:rgba(255,255,255,.25)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.multi{padding:16px;border-radius:14px;background:var(--sidebar-card);color:#fff;border:none;
+  display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;line-height:1.3;width:100%}
+.multi .avatar{width:34px;height:34px;border-radius:50%;background:var(--second);display:flex;
+  align-items:center;justify-content:center;font-weight:700;font-family:var(--font-title);flex-shrink:0}
+.multi small{display:block;opacity:.65}
+
+@media (max-width:900px){
+  .shell{flex-direction:column}
+  .sidebar{width:auto;flex-direction:row;align-items:center;gap:12px;padding:10px 12px;overflow-x:auto}
+  .brand-name,.side-foot{display:none}
+  .topnav{flex-direction:row;gap:2px}
+  .topnav button{flex-direction:column;gap:3px;font-size:11px;min-width:60px;padding:6px 8px;text-align:center}
+  .topnav button .dot{display:none}
+}
 .search{display:flex;align-items:center;gap:8px;padding:0 14px}
 .search input{width:230px;border-radius:18px}
 
 /* ---- Body : colonne actions + contenu ---- */
 .body{display:flex;flex:1;min-height:0}
-.actions{width:170px;background:#fbfcfe;border-right:1px solid var(--line);padding:14px 10px;flex-shrink:0;overflow-y:auto}
-.cur-badge{border:1px solid var(--accent);color:var(--accent);font-weight:700;text-align:center;border-radius:16px;padding:4px 0;margin-bottom:14px}
-.act{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--accent);padding:9px 8px;border-radius:7px;font-size:14px;text-align:left}
-.act:hover{background:#eaf0fb}
+.actions{width:170px;background:transparent;border-right:1px solid var(--line);padding:14px 10px;flex-shrink:0;overflow-y:auto}
+.cur-badge{border:1px solid var(--accent);color:var(--accent);font-weight:700;text-align:center;border-radius:var(--r-pill);padding:4px 0;margin-bottom:14px}
+.act{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--accent-d);padding:9px 8px;border-radius:var(--r-ctl);font-size:14px;font-weight:600;text-align:left}
+.act:hover{background:var(--row-alt)}
 .act.disabled{color:#b6c0cc;cursor:default}
 .act.disabled:hover{background:none}
 .act .ic{font-size:16px;width:18px;text-align:center}
@@ -65,7 +127,7 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .dot.g{background:var(--green)}.dot.r{background:var(--red)}
 .cat-cell{display:flex;align-items:center;gap:9px}
 .cat-cell .em{font-size:16px}
-.chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#eef2f6;color:var(--muted)}
+.chip{display:inline-block;padding:4px 10px;border-radius:var(--r-pill);font-size:11px;font-weight:700;background:var(--row-alt);color:var(--muted)}
 .chip.dep{background:#fdeceb;color:var(--red)}.chip.rec{background:#e8f6ee;color:var(--green)}
 
 /* ---- Barre solde bas ---- */
@@ -77,7 +139,7 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .statusbar .right{margin-left:auto;color:var(--muted)}
 
 /* ---- Cartes / pages génériques ---- */
-.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:24px;margin-bottom:18px}
 .page-title{font-size:20px;font-weight:700;margin:0 0 4px}
 .page-sub{color:var(--muted);margin:0 0 18px}
 .balance{font-size:30px;font-weight:800}.balance.pos{color:var(--green)}.balance.neg{color:var(--red)}
