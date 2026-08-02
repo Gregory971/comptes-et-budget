@@ -1,5 +1,75 @@
 # Journal des modifications
 
+## Version 2.2.1 — 2 août 2026
+
+Première mise en ligne de l'application sur GitHub Pages, et le durcissement que
+cette publication rendait nécessaire. Aucun changement de fonctionnement : les
+écrans, les calculs et les données sont identiques à la version 2.2.0.
+
+### La confidentialité devient opposable
+
+L'application promet que les données ne quittent jamais l'appareil. Jusqu'ici,
+cette promesse ne reposait que sur un constat de lecture — le code n'appelle
+aucune API réseau — qu'une dépendance ajoutée plus tard aurait pu rompre sans
+que rien ne le signale.
+
+Les pages construites portent désormais une **politique de sécurité du contenu**
+dont la directive `connect-src 'none'` fait refuser par le navigateur lui-même
+toute requête sortante : `fetch`, `XMLHttpRequest`, `WebSocket` et `sendBeacon`
+comprises. Vérifié sur le site publié — les quatre émettent une violation — le
+service worker restant actif et le mode hors ligne intact.
+
+`frame-ancestors` en est délibérément absente : la directive est ignorée
+lorsqu'elle est déclarée par balise `<meta>`, et GitHub Pages ne permet d'émettre
+aucun en-tête HTTP. L'y inscrire aurait laissé croire à une protection contre le
+détournement de clic qui ne se serait jamais appliquée.
+
+La politique vit dans `src/utils/csp.ts` plutôt que dans la configuration de
+construction, afin d'être couverte par le contrôle de types et par ses propres
+tests : un assouplissement ultérieur fera échouer la publication au lieu de
+passer inaperçu.
+
+### Vulnérabilités des outils de construction
+
+Montée de **Vite 5 → 7** et de `@vitejs/plugin-react` 4 → 5, qui corrige deux
+failles du serveur de développement : le contournement de chemin de Vite
+(`GHSA-4w7w-66w2-5vf9`, sévérité élevée) et l'accès aux réponses du serveur
+depuis un site tiers via esbuild (`GHSA-67mh-4wv8-2f99`). Le site publié, qui
+est statique, n'était pas exposé ; le poste de développement l'était.
+`npm audit` ne signale plus rien.
+
+Vite 7 est retenu plutôt que Vite 8 : vitest 4 l'accepte, si bien que l'arbre se
+dédoublonne sur une seule instance — il en portait **deux**, dans un état
+invalide (`ELSPROBLEMS`), avec un esbuild incompatible entre elles — là où le
+passage à la 8 imposerait une chaîne rolldown/babel en conflit.
+
+### Fiabilité de la publication
+
+La première tentative de mise en ligne a échoué deux fois, pour deux raisons
+distinctes qui sont maintenant traitées :
+
+- le `package-lock.json` versionné ne correspondait plus au `package.json`, ce
+  qui fait échouer `npm ci` — resynchronisé ;
+- les dépendances récentes exigent Node ≥ 22 alors que le workflow était figé
+  sur Node 20, avec à la clé un message trompeur (« Missing: esbuild@… from lock
+  file ») désignant le lock file plutôt que la version de Node. Le workflow passe
+  à Node 24, et `engines` + `engine-strict` font désormais nommer la cause réelle
+  dès l'installation.
+
+### Vérifications
+
+- 7 tests ajoutés (95 au total) sur la politique de sécurité : interdiction de
+  toute requête sortante dans les deux modes de construction, verrouillage des
+  vecteurs annexes (`form-action`, `base-uri`, `object-src`), dérogation aux
+  scripts en ligne restreinte au seul fichier autonome, et absence de
+  `frame-ancestors`.
+- Contrôlé sur le site réellement publié : CSP présente, exfiltration bloquée,
+  service worker actif, application fonctionnelle.
+
+> **À la première ouverture après cette mise à jour**, un appareil où
+> l'application était déjà installée peut afficher la version précédente le temps
+> que le service worker se renouvelle. Un second lancement suffit.
+
 ## Version 2.2.0 — 2 août 2026
 
 ### Affichage prévisionnel des opérations
