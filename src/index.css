@@ -402,3 +402,20 @@ details[open] > summary { margin-bottom: 4px; }
 .dot.prevu { background: var(--orange); }
 
 .solde-pill.est { border-color: var(--orange); }
+
+/* Sélecteur d'icône (groupes et catégories) */
+.icon-pick{
+  background:#fff;border:1px solid var(--line);border-radius:6px;
+  padding:5px 8px;font-size:16px;line-height:1.2;min-width:38px;
+}
+.icon-pick:hover{border-color:var(--accent)}
+.icon-pick-vide{color:var(--muted);font-size:14px}
+.icon-grid-bloc{margin-bottom:10px}
+.icon-grid-titre{margin:0 0 4px;font-size:11px;font-weight:600;color:var(--muted)}
+.icon-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.icon-choix{
+  background:#fff;border:1px solid transparent;border-radius:6px;
+  padding:5px 0;font-size:18px;line-height:1.2;
+}
+.icon-choix:hover{background:var(--row-alt);border-color:var(--line)}
+.icon-choix.actif{border-color:var(--accent);background:var(--row-alt)}

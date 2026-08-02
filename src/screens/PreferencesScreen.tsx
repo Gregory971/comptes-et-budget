@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useReferentials } from '../hooks/useData';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
+import { IconPicker } from '../components/IconPicker';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import { backupService } from '../services/backupService';
 import { dbService } from '../services/dbService';
@@ -152,6 +153,7 @@ function CategoriesTab({ database }: { database: Database }) {
   const [gKind, setGKind] = useState<'depense' | 'recette'>('depense');
   const [gIcon, setGIcon] = useState('📁');
   const [catInputs, setCatInputs] = useState<Record<string, string>>({});
+  const [catIcons, setCatIcons] = useState<Record<string, string | undefined>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmGroup, setConfirmGroup] = useState<CategoryGroup | null>(null);
   const [confirmCat, setConfirmCat] = useState<Category | null>(null);
@@ -159,8 +161,9 @@ function CategoriesTab({ database }: { database: Database }) {
   return (
     <div className="card">
       <div className="inline">
-        <div className="field" style={{ width: 80 }}><label htmlFor="cg-icon">Icône</label>
-          <input id="cg-icon" value={gIcon} onChange={e => setGIcon(e.target.value)} /></div>
+        <div className="field" style={{ width: 'auto' }}><label>Icône</label>
+          <IconPicker value={gIcon} label="Icône du groupe"
+            onChange={icon => setGIcon(icon ?? '')} /></div>
         <div className="field grow"><label htmlFor="cg-name">Nouveau groupe</label>
           <input id="cg-name" value={gName} onChange={e => setGName(e.target.value)}
             placeholder="Ex : Alimentation" /></div>
@@ -175,9 +178,12 @@ function CategoriesTab({ database }: { database: Database }) {
       {groups.map(g => (
         <div key={g.id} style={{ borderTop: '1px solid var(--line)', padding: '12px 0', opacity: g.archived ? 0.55 : 1 }}>
           <div className="row">
-            <strong><span aria-hidden="true">{g.icon}</span> {g.name}
+            <strong style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconPicker value={g.icon} label={`Icône du groupe ${g.name}`}
+                onChange={icon => categoryService.updateGroup(g.id, { icon })} />
+              {g.name}
               <span className={'chip ' + (g.kind === 'depense' ? 'dep' : 'rec')}>{g.kind}</span>
-              {g.archived && <span className="chip" style={{ marginLeft: 6 }}>archivé</span>}
+              {g.archived && <span className="chip">archivé</span>}
             </strong>
             <span style={{ whiteSpace: 'nowrap' }}>
               {g.archived ? (
@@ -193,8 +199,11 @@ function CategoriesTab({ database }: { database: Database }) {
           <ul className="sub-list">
             {cats.filter(c => c.groupId === g.id).map(c => (
               <li key={c.id} style={{ opacity: c.archived ? 0.55 : 1 }}>
-                <span><span aria-hidden="true">{c.icon}</span> {c.name}
-                  {c.archived && <span className="chip" style={{ marginLeft: 6 }}>archivée</span>}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconPicker value={c.icon} label={`Icône de la catégorie ${c.name}`}
+                    onChange={icon => categoryService.updateCategory(c.id, { icon })} />
+                  {c.name}
+                  {c.archived && <span className="chip">archivée</span>}</span>
                 <span style={{ whiteSpace: 'nowrap' }}>
                   {c.archived ? (
                     <button className="btn ghost" style={{ padding: '2px 8px' }}
@@ -211,6 +220,8 @@ function CategoriesTab({ database }: { database: Database }) {
             ))}
           </ul>
           <div className="inline" style={{ marginTop: 8 }}>
+            <IconPicker value={catIcons[g.id]} label={`Icône de la nouvelle catégorie dans ${g.name}`}
+              onChange={icon => setCatIcons({ ...catIcons, [g.id]: icon })} />
             <div className="field grow" style={{ margin: 0 }}>
               <label className="sr-only" htmlFor={`cat-${g.id}`}>Nouvelle catégorie dans {g.name}</label>
               <input id={`cat-${g.id}`} placeholder="+ catégorie dans ce groupe"
@@ -218,7 +229,13 @@ function CategoriesTab({ database }: { database: Database }) {
                 onChange={e => setCatInputs({ ...catInputs, [g.id]: e.target.value })} /></div>
             <button className="btn ghost" onClick={async () => {
               const v = (catInputs[g.id] || '').trim();
-              if (v) { await categoryService.createCategory(dbId, g.id, v); setCatInputs({ ...catInputs, [g.id]: '' }); }
+              if (!v) return;
+              // Sans icône choisie, la catégorie hérite de celle du groupe plutôt
+              // que de rester vide : une ligne sans pictogramme se repère mal
+              // dans les listes d'opérations.
+              await categoryService.createCategory(dbId, g.id, v, catIcons[g.id] ?? g.icon);
+              setCatInputs({ ...catInputs, [g.id]: '' });
+              setCatIcons({ ...catIcons, [g.id]: undefined });
             }}>Ajouter</button>
           </div>
         </div>

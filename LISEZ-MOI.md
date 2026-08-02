@@ -30,7 +30,8 @@ Ce fichier autonome est désormais **généré à partir du code source** par
 - **Biens / Projets** : patrimoine estimé et projets d'épargne.
 - **Bilans** : mois / trimestre / année, graphiques (catégories, recettes vs
   dépenses, évolution du solde). Les virements sont exclus des totaux.
-- **Préférences** : tiers, catégories, modes de paiement, calendrier des jours
+- **Préférences** : tiers, catégories — avec sélecteur d'icône sur chaque groupe
+  et chaque catégorie —, modes de paiement, calendrier des jours
   fériés (territoire de référence) et sauvegarde.
 
 ## Jours fériés et jours ouvrés
@@ -93,7 +94,7 @@ première ouverture (migration Dexie v4, testée dans `src/services/migration.te
 
     npm install
     npm run dev            # serveur local
-    npm test               # 95 tests unitaires et d'intégration
+    npm test               # 104 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

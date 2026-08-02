@@ -1,5 +1,44 @@
 # Journal des modifications
 
+## Version 2.3.0 — 2 août 2026
+
+### Choix des icônes de catégories
+
+Les catégories créées à la main n'avaient **aucune icône** : le formulaire
+« + catégorie dans ce groupe » ne proposait pas ce champ, et le service ne
+recevait donc jamais de valeur. Dans les listes d'opérations, ces catégories
+s'affichaient avec un blanc là où celles du catalogue portent leur pictogramme.
+Quant à l'icône d'un groupe, elle ne se renseignait qu'à la création, dans une
+zone de texte : il fallait connaître le raccourci du système pour composer un
+emoji, et rien ne permettait de la corriger ensuite.
+
+Un **sélecteur d'icône** remplace ce champ et apparaît à quatre endroits : à la
+création d'un groupe, à la création d'une catégorie, et sur l'icône de chaque
+groupe et de chaque catégorie déjà enregistrés — un clic dessus suffit désormais
+à la changer.
+
+La palette réunit 88 emoji classés par usage (alimentation, logement, transport,
+santé, loisirs, abonnements, télécommunications, banque, revenus, famille,
+divers), et une zone de saisie libre accepte n'importe quel autre emoji. Le
+bouton « Aucune icône » permet de revenir en arrière.
+
+**Une catégorie créée sans choix reprend l'icône de son groupe** plutôt que de
+rester vide : une ligne sans pictogramme se repère mal dans un relevé.
+
+Aucune modification du modèle de données : `createCategory`, `updateGroup` et
+`updateCategory` acceptaient déjà une icône — seule l'interface ne la
+transmettait pas.
+
+### Vérifications
+
+- 9 tests ajoutés (104 au total) : affichage de l'icône courante, nom accessible
+  du bouton lorsqu'aucune icône n'est posée, choix dans la palette, saisie libre,
+  refus d'une saisie vide, retrait de l'icône, marquage de l'icône déjà
+  sélectionnée, annulation sans effet, et absence de doublon dans la palette.
+- Contrôlé sur l'application construite : création d'une catégorie sans icône
+  (héritage du groupe vérifié en base) puis changement de son icône, tous deux
+  bien enregistrés dans IndexedDB.
+
 ## Version 2.2.1 — 2 août 2026
 
 Première mise en ligne de l'application sur GitHub Pages, et le durcissement que
