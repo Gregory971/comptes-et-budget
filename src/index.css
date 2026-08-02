@@ -75,6 +75,17 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .nav-badge{margin-left:auto;background:var(--second);color:#fff;font-size:11px;font-weight:700;
   border-radius:var(--r-pill);padding:2px 8px}
 .topnav button.active .nav-badge{background:rgba(255,255,255,.25)}
+/* Actions repliées dans la barre : mêmes boutons, sur fond sombre. */
+.side-acts{display:flex;flex-direction:column;gap:2px;
+  border-top:1px solid rgba(255,255,255,.12);padding-top:16px}
+.sidebar .act{color:var(--sidebar-txt);font-size:14px;font-weight:600;padding:9px 12px}
+.sidebar .act:hover{background:var(--sidebar-card);color:#fff}
+.sidebar .act.disabled,.sidebar .act:disabled{color:rgba(255,255,255,.35)}
+.sidebar .act.disabled:hover{background:none}
+.sidebar .act-sep{background:rgba(255,255,255,.12);margin:8px 4px}
+.sidebar .cur-badge{align-self:flex-start;margin:0;padding:3px 12px;font-size:12px;
+  border-color:rgba(255,255,255,.25);color:var(--sidebar-txt)}
+
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px}
 .multi{padding:16px;border-radius:14px;background:var(--sidebar-card);color:#fff;border:none;
   display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;line-height:1.3;width:100%}
@@ -86,6 +97,15 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
   .shell{flex-direction:column}
   .sidebar{width:auto;flex-direction:row;align-items:center;gap:12px;padding:10px 12px;overflow-x:auto}
   .brand-name,.side-foot{display:none}
+  /* Les actions restent visibles : l'écran de saisie n'étant pas dans la
+     navigation, les masquer rendrait « Ajouter » inatteignable. Elles passent
+     en ligne, libellés masqués, l'icône seule suffisant à les distinguer. */
+  .side-acts{flex-direction:row;border-top:none;border-left:1px solid rgba(255,255,255,.12);
+    padding:0 0 0 10px;margin-left:4px}
+  .sidebar .act{flex-direction:column;gap:3px;font-size:11px;font-weight:600;
+    min-width:60px;padding:6px 8px;text-align:center;line-height:1.15}
+  .sidebar .act .ic{font-size:18px;width:auto}
+  .sidebar .act-sep{display:none}
   .topnav{flex-direction:row;gap:2px}
   .topnav button{flex-direction:column;gap:3px;font-size:11px;min-width:60px;padding:6px 8px;text-align:center}
   .topnav button .dot{display:none}

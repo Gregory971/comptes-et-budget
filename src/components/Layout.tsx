@@ -68,7 +68,13 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
             </button>
           ))}
         </nav>
+        {/* Les actions occupaient une colonne à part, qui faisait doublon avec
+            cette barre depuis la refonte ; elles y sont repliées. */}
+        <div className="side-acts" aria-label="Actions" role="group">
+          {actions ?? <DefaultActions />}
+        </div>
         <div className="side-foot">
+          <span className="cur-badge">EUR</span>
           <button className="multi" onClick={() => setShowSwitcher(true)}>
             <span className="avatar" aria-hidden="true">
               {(database?.name ?? 'C').trim().charAt(0).toUpperCase()}</span>
@@ -77,13 +83,7 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
           </button>
         </div>
       </aside>
-      <div className="body">
-        <aside className="actions" aria-label="Actions">
-          <div className="cur-badge">EUR</div>
-          {actions ?? <DefaultActions />}
-        </aside>
-        <section className="content">{children}</section>
-      </div>
+      <section className="content">{children}</section>
       {showSwitcher && <BaseSwitcher onClose={() => setShowSwitcher(false)} />}
     </div>
   );
