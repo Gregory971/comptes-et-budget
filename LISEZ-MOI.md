@@ -11,7 +11,8 @@ Ce fichier autonome est désormais **généré à partir du code source** par
 
 ## Modules
 
-- **Accueil** : solde total et par compte, dernières opérations.
+- **Accueil** : tableau de bord — solde total, recettes, dépenses et solde du
+  mois, puis dernières opérations, prochaines échéances et soldes par compte.
 - **Comptes** : création, modification, archivage (les comptes archivés
   conservent leur historique mais sortent du solde total).
 - **Comptabiliser** : saisie « quand / combien / qui / pourquoi / comment »,
@@ -94,7 +95,7 @@ première ouverture (migration Dexie v4, testée dans `src/services/migration.te
 
     npm install
     npm run dev            # serveur local
-    npm test               # 105 tests unitaires et d'intégration
+    npm test               # 106 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

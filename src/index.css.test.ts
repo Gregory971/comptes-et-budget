@@ -62,6 +62,22 @@ describe('feuille de style — contrôles à cocher', () => {
     expect(specific).toBeGreaterThan(generic);
   });
 
+  it('plafonne la hauteur de la modale et fait défiler son corps', () => {
+    // Sans plafond ni défilement, le formulaire d'échéance — le plus long de
+    // l'application — dépassait la fenêtre : le bas était rogné et le bouton
+    // d'enregistrement devenait inatteignable, sans barre de défilement.
+    const modal = css.slice(css.indexOf('.modal{'), css.indexOf('.modal-body'));
+    expect(modal).toContain('max-height:90vh');
+    expect(modal).toContain('flex-direction:column');
+
+    const body = css.slice(css.indexOf('.modal-body{'));
+    expect(body.slice(0, body.indexOf('}'))).toContain('overflow-y:auto');
+
+    // Repli sur les écrans très bas : le voile défile à son tour.
+    const overlay = css.slice(css.indexOf('.modal-overlay{'), css.indexOf('.modal{'));
+    expect(overlay).toContain('overflow-y:auto');
+  });
+
   it('rend le libellé des lignes radio lisible et extensible', () => {
     const label = document.createElement('label');
     label.className = 'radio-row';

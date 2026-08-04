@@ -51,7 +51,7 @@ export function Modal({ title, children, onClose, width = 560 }: {
           <h3 id={titleId} style={{ margin: 0 }}>{title}</h3>
           <button className="iconbtn" onClick={onClose} aria-label="Fermer la fenêtre">✕</button>
         </div>
-        <div style={{ marginTop: 12 }}>{children}</div>
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );

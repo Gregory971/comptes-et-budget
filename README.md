@@ -75,7 +75,7 @@ publication plutôt que de passer inaperçu.
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 105 tests unitaires et d'intégration
+npm test               # 106 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA

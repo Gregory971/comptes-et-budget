@@ -1,5 +1,33 @@
 # Journal des modifications
 
+## Version 2.4.1 — 3 août 2026
+
+### Fenêtres modales tronquées
+
+**Le formulaire d'une nouvelle échéance était impossible à valider.** Les
+fenêtres modales n'avaient ni hauteur maximale ni défilement : dès que leur
+contenu dépassait la fenêtre du navigateur, le bas était purement rogné, sans
+barre de défilement pour l'atteindre. Le bouton « Enregistrer » se retrouvait
+hors écran — mesuré à 1105 px dans une fenêtre haute de 700 px.
+
+Le défaut préexistait, mais la refonte 2.4.0 l'a rendu manifeste : champs plus
+hauts (10 px de marge intérieure au lieu de 7) et cartes plus aérées ont suffi
+à faire déborder le plus long formulaire de l'application.
+
+La modale est désormais plafonnée à 90 % de la hauteur visible. Son titre et sa
+croix de fermeture restent fixes, seul le corps défile ; sur les écrans très
+bas, le voile défile à son tour. Aucune autre fenêtre n'est affectée : celles
+qui tenaient déjà s'affichent à l'identique.
+
+### Vérifications
+
+- Un test ajouté (106 au total) sur le plafond de hauteur, le défilement du
+  corps et celui du voile — les trois règles dont dépend l'accessibilité du
+  bouton de validation.
+- Contrôlé sur l'application construite en 1280 × 700 : la modale tient dans
+  l'écran, son corps défile (551 px visibles pour 1014 px de contenu) et le
+  bouton « Enregistrer » redevient visible et réellement cliquable.
+
 ## Version 2.4.0 — 2 août 2026
 
 Refonte de l'apparence d'après une maquette Claude Design. Les calculs, les
