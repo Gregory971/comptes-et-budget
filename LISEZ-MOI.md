@@ -31,9 +31,20 @@ Ce fichier autonome est désormais **généré à partir du code source** par
 - **Biens / Projets** : patrimoine estimé et projets d'épargne.
 - **Bilans** : mois / trimestre / année, graphiques (catégories, recettes vs
   dépenses, évolution du solde). Les virements sont exclus des totaux.
+  S'y ajoute la **trésorerie prévisionnelle** sur 3 à 24 mois : solde projeté
+  d'après les échéances programmées (montants certains) et les enveloppes
+  budgétaires (estimations), date du premier passage sous zéro, point bas de
+  chaque mois.
+- **Import d'un relevé bancaire** (écran Comptabiliser) : fichier CSV ou OFX
+  téléchargé depuis la banque, analysé sur l'appareil. Les lignes déjà présentes
+  sont détectées et décochées, les tiers connus reconnus dans les libellés, et
+  rien n'est écrit avant confirmation.
+- **Rapprochement bancaire** (écran Comptes, bouton « Rapprocher ») : écart
+  entre le solde du relevé et le total des opérations pointées.
 - **Préférences** : tiers, catégories — avec sélecteur d'icône sur chaque groupe
-  et chaque catégorie —, modes de paiement, calendrier des jours
-  fériés (territoire de référence) et sauvegarde.
+  et chaque catégorie —, modes de paiement, **thème** (système, clair, sombre),
+  **stockage** de la base sur l'appareil, calendrier des jours fériés
+  (territoire de référence) et sauvegarde.
 
 ## Jours fériés et jours ouvrés
 
@@ -56,7 +67,9 @@ suivant, même s'il a été reporté au 17.
 
 ## Sauvegarde et synchronisation Google Drive
 
-1. **Exporter** : génère un fichier `.cbjson` contenant toute la base.
+1. **Exporter** : génère un fichier `.cbjson` contenant toute la base. Le
+   chiffrement par phrase secrète y est proposé — recommandé dès lors que le
+   fichier part dans un dossier synchronisé.
 2. Enregistrez-le dans votre dossier « Google Drive pour ordinateur ».
 3. Sur l'autre appareil : **Importer**, puis choisir :
    - **Fusionner** (recommandé) — pour chaque enregistrement, la modification la
@@ -65,6 +78,18 @@ suivant, même s'il a été reporté au 17.
 
 Une copie de sécurité de l'état courant est téléchargée automatiquement avant
 tout import.
+
+**Sauvegarde automatique** (Chrome, Edge, Opera) : Préférences → Général permet
+de désigner un fichier une fois pour toutes ; l'application y réécrit la
+sauvegarde à chaque ouverture et à chaque passage de l'onglet en arrière-plan.
+Ce fichier est écrit en clair — le chiffrer supposerait de conserver la phrase
+secrète d'une session à l'autre. Pour un dossier partagé, l'export manuel
+chiffré reste la bonne réponse.
+
+**Stockage de la base** : l'application demande au navigateur le classement
+« persistant », qui met la base à l'abri de la suppression automatique
+(récupération d'espace disque, ou sept jours sans ouverture sous Safari).
+L'état obtenu est affiché dans Préférences → Général.
 
 ## Conventions du modèle de données
 
@@ -77,15 +102,19 @@ Deux règles s'appliquent à l'ensemble du code :
 - **Montants en centimes entiers** (`src/utils/money.ts`), suffixe `Cents`.
   Les additions sont exactes ; la conversion en euros n'a lieu qu'à l'affichage.
 
-Les bases créées avec la version précédente sont converties automatiquement à la
-première ouverture (migration Dexie v4, testée dans `src/services/migration.test.ts`).
+Les bases créées avec une version précédente sont converties automatiquement à
+la première ouverture (migrations Dexie jusqu'à la v7, testées dans
+`src/services/migration.test.ts`). La v6 ajoute le jour d'ancrage des échéances
+et le solde d'ouverture des projets ; la v7, les réglages propres à l'appareil.
 
 ## Architecture
 
-    src/utils/       dates civiles, montants en centimes
-    src/types/       modèle de données (12 entités)
+    src/utils/       dates civiles, montants en centimes, lecture des relevés
+    src/types/       modèle de données (13 entités)
     src/services/    Dexie (IndexedDB) et métier — comptes, opérations,
-                     virements, échéances, budgets, bilans, sauvegarde
+                     virements, échéances, budgets, bilans, prévisionnel long
+                     terme, rapprochement, import de relevés, sauvegarde
+                     (chiffrement, écriture automatique)
     src/store/       état de session (écran courant, base active)
     src/hooks/       lecture réactive des données (useLiveQuery)
     src/components/  Layout, modale accessible, formulaires, graphiques SVG
@@ -95,7 +124,7 @@ première ouverture (migration Dexie v4, testée dans `src/services/migration.te
 
     npm install
     npm run dev            # serveur local
-    npm test               # 106 tests unitaires et d'intégration
+    npm test               # 194 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

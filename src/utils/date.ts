@@ -56,6 +56,33 @@ export function addYears(date: Ymd, n: number): Ymd {
   return ymd(y + n, m - 1, Math.min(d, lastDayOfMonth(y + n, m - 1)));
 }
 
+/** Quantième d'une date civile (1 à 31). */
+export const dayOfMonth = (date: Ymd): number => Number(date.slice(8, 10));
+
+/**
+ * Décale une date civile de n mois en conservant un JOUR D'ANCRAGE.
+ *
+ * addMonths borne au dernier jour du mois cible, ce qui est correct pour un
+ * décalage isolé mais faux quand on enchaîne les décalages : un prélèvement du
+ * 31 janvier devenait le 28 février, puis le 28 mars, puis le 28 avril — la
+ * date de prélèvement dérivait définitivement dès qu'elle rencontrait un mois
+ * court. En repartant du jour d'ancrage à chaque calcul, le 31 redevient le 31
+ * dès que le mois cible le permet : 31/01 → 28/02 → 31/03 → 30/04 → 31/05.
+ */
+export function addMonthsAnchored(date: Ymd, n: number, anchorDay: number): Ymd {
+  const [y, m] = date.split('-').map(Number);
+  const total = (m - 1) + n;
+  const ty = y + Math.floor(total / 12);
+  const tm = ((total % 12) + 12) % 12;
+  return ymd(ty, tm, Math.min(anchorDay, lastDayOfMonth(ty, tm)));
+}
+
+/** Décale d'une année en conservant le jour d'ancrage (29 février compris). */
+export function addYearsAnchored(date: Ymd, n: number, anchorDay: number): Ymd {
+  const [y, m] = date.split('-').map(Number);
+  return ymd(y + n, m - 1, Math.min(anchorDay, lastDayOfMonth(y + n, m - 1)));
+}
+
 /** Bornes inclusives d'un mois. */
 export function monthRange(y: number, m: number): { from: Ymd; to: Ymd } {
   return { from: ymd(y, m, 1), to: ymd(y, m, lastDayOfMonth(y, m)) };

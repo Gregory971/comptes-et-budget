@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAccounts, useBalances } from '../hooks/useData';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { ReconcileModal } from '../components/ReconcileModal';
 import { MoneyInput } from '../components/MoneyInput';
 import { accountService } from '../services/accountService';
 import { formatEur, type Cents } from '../utils/money';
@@ -18,6 +19,7 @@ export function ComptesScreen({ database }: { database: Database }) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState<Account | null>(null);
+  const [reconciling, setReconciling] = useState<Account | null>(null);
 
   const actifs = accounts.filter(a => !a.archived);
   const archives = accounts.filter(a => a.archived);
@@ -62,6 +64,9 @@ export function ComptesScreen({ database }: { database: Database }) {
                 <td><span className="chip">{TYPE_LABEL[a.type]}</span></td>
                 <td style={{ textAlign: 'right' }}>{formatEur(balances[a.id] ?? a.initialBalanceCents)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <button className="btn ghost" onClick={() => setReconciling(a)}
+                    title="Comparer le solde du relevé au total des opérations pointées"
+                    style={{ marginRight: 6 }}>Rapprocher</button>
                   <button className="btn ghost" onClick={() => setEditing(a)}>Modifier</button>
                   <button className="btn ghost" style={{ marginLeft: 6 }}
                     disabled={actifs.length <= 1}
@@ -100,6 +105,10 @@ export function ComptesScreen({ database }: { database: Database }) {
       {(editing || creating) && (
         <AccountModal dbId={dbId} account={editing ?? undefined}
           onClose={() => { setEditing(null); setCreating(false); }} />
+      )}
+
+      {reconciling && (
+        <ReconcileModal dbId={dbId} account={reconciling} onClose={() => setReconciling(null)} />
       )}
 
       {confirmArchive && (

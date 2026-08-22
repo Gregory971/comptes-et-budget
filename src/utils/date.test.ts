@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addMonths, addYears, formatFr, lastDayOfMonth, monthKey, monthRange,
-  normalizeYmd, toYmd, ymd,
+  addMonths, addMonthsAnchored, addYears, addYearsAnchored, dayOfMonth,
+  formatFr, lastDayOfMonth, monthKey, monthRange, normalizeYmd, toYmd, ymd,
 } from './date';
 
 describe('dates civiles', () => {
@@ -56,5 +56,38 @@ describe('dates civiles', () => {
     expect(monthKey('2026-08-01')).toBe('2026-08');
     expect(ymd(2026, 0, 5)).toBe('2026-01-05');
     expect(lastDayOfMonth(2026, 1)).toBe(28);
+  });
+});
+
+describe('jour d’ancrage', () => {
+  it('revient au quantième d’origine après un mois court', () => {
+    // Sans ancrage, l'enchaînement 31/01 → 28/02 → 28/03 fixait définitivement
+    // le prélèvement au 28 : la date dérivait dès le premier mois court.
+    expect(addMonthsAnchored('2026-01-31', 1, 31)).toBe('2026-02-28');
+    expect(addMonthsAnchored('2026-02-28', 1, 31)).toBe('2026-03-31');
+    expect(addMonthsAnchored('2026-03-31', 1, 31)).toBe('2026-04-30');
+    expect(addMonthsAnchored('2026-04-30', 1, 31)).toBe('2026-05-31');
+  });
+
+  it('traite le 30 comme le 31, chacun selon son ancrage', () => {
+    expect(addMonthsAnchored('2026-01-30', 1, 30)).toBe('2026-02-28');
+    expect(addMonthsAnchored('2026-02-28', 1, 30)).toBe('2026-03-30');
+  });
+
+  it('franchit l’année et le trimestre sans perdre l’ancrage', () => {
+    expect(addMonthsAnchored('2026-11-30', 1, 31)).toBe('2026-12-31');
+    expect(addMonthsAnchored('2026-12-31', 1, 31)).toBe('2027-01-31');
+    expect(addMonthsAnchored('2026-11-30', 3, 31)).toBe('2027-02-28');
+  });
+
+  it('rétablit le 29 février d’une année bissextile', () => {
+    expect(addYearsAnchored('2028-02-29', 1, 29)).toBe('2029-02-28');
+    expect(addYearsAnchored('2029-02-28', 1, 29)).toBe('2030-02-28');
+    expect(addYearsAnchored('2031-02-28', 1, 29)).toBe('2032-02-29');
+  });
+
+  it('lit le quantième d’une date civile', () => {
+    expect(dayOfMonth('2026-08-01')).toBe(1);
+    expect(dayOfMonth('2026-08-31')).toBe(31);
   });
 });

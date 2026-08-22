@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useAccounts } from '../hooks/useData';
 import { reportService, periodRange, shiftAnchor, type Granularity } from '../services/reportService';
 import { formatEur } from '../utils/money';
-import { DonutChart, BarsChart, LineChartSimple } from '../components/Charts';
+import { DonutChart, BarsChart, LineChartSimple, HorizonChart } from '../components/Charts';
+import { buildHorizon } from '../services/horizonService';
+import { formatFr } from '../utils/date';
 import type { Database } from '../types';
 
 export function BilansScreen({ database }: { database: Database }) {
@@ -13,7 +15,13 @@ export function BilansScreen({ database }: { database: Database }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [accountId, setAccountId] = useState('');
 
+  const [horizonMois, setHorizonMois] = useState(12);
   const range = periodRange(anchor, g);
+
+  const horizon = useLiveQuery(
+    () => buildHorizon(dbId, accountId || undefined, horizonMois, database.holidayRegion),
+    [dbId, accountId, horizonMois, database.holidayRegion], undefined,
+  );
   const data = useLiveQuery(
     () => reportService.build(dbId, accountId || undefined, range),
     [dbId, accountId, range.from, range.to], undefined,
@@ -49,6 +57,91 @@ export function BilansScreen({ database }: { database: Database }) {
           </div>
         </div>
       </div>
+
+      {horizon && (
+        <div className="card">
+          <div className="row">
+            <strong>Trésorerie prévisionnelle</strong>
+            <span className="inline" style={{ margin: 0 }}>
+              <label className="sr-only" htmlFor="bi-horizon">Durée de la projection</label>
+              <select id="bi-horizon" value={horizonMois} style={{ width: 130 }}
+                onChange={e => setHorizonMois(Number(e.target.value))}>
+                <option value={3}>3 mois</option>
+                <option value={6}>6 mois</option>
+                <option value={12}>12 mois</option>
+                <option value={24}>24 mois</option>
+              </select>
+            </span>
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+            Solde projeté à partir des échéances programmées (trait plein, montants
+            certains) et des enveloppes budgétaires non consommées (pointillé,
+            estimations). Les opérations ponctuelles à venir non programmées n’y
+            figurent pas.
+          </p>
+
+          {horizon.firstNegative ? (
+            <p role="alert" style={{
+              background: 'color-mix(in oklab, var(--red) 12%, transparent)',
+              border: '1px solid var(--red)', borderRadius: 'var(--r-ctl)',
+              padding: '10px 14px', fontWeight: 600,
+            }}>
+              ⚠️ Découvert prévu le {formatFr(horizon.firstNegative.date)} :
+              {' '}{formatEur(horizon.firstNegative.balanceCents)} — sur les seules
+              échéances programmées.
+            </p>
+          ) : horizon.firstNegativeWithBudget ? (
+            <p role="status" style={{
+              background: 'color-mix(in oklab, var(--orange) 14%, transparent)',
+              border: '1px solid var(--orange)', borderRadius: 'var(--r-ctl)',
+              padding: '10px 14px',
+            }}>
+              Aucun découvert sur les échéances certaines, mais le budget mensuel
+              tenu jusqu’au bout mènerait sous zéro le
+              {' '}{formatFr(horizon.firstNegativeWithBudget.date)}.
+            </p>
+          ) : (
+            <p className="muted" role="status">
+              Aucun découvert prévu sur {horizonMois} mois.
+            </p>
+          )}
+
+          <div style={{ marginTop: 12 }}><HorizonChart data={horizon.months} /></div>
+
+          <details style={{ marginTop: 10 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13 }}>Voir le détail mois par mois</summary>
+            <table className="simple" style={{ marginTop: 8 }}>
+              <thead>
+                <tr>
+                  <th>Mois</th>
+                  <th style={{ textAlign: 'right' }}>Ouverture</th>
+                  <th style={{ textAlign: 'right' }}>Échéances</th>
+                  <th style={{ textAlign: 'right' }}>Point bas</th>
+                  <th style={{ textAlign: 'right' }}>Clôture</th>
+                  <th style={{ textAlign: 'right' }}>Clôture avec budget</th>
+                </tr>
+              </thead>
+              <tbody>
+                {horizon.months.map(m => (
+                  <tr key={m.key}>
+                    <td style={{ textTransform: 'capitalize' }}>{m.label}</td>
+                    <td className="num" style={{ textAlign: 'right' }}>{formatEur(m.openingCents)}</td>
+                    <td className="num" style={{ textAlign: 'right' }}>{formatEur(m.scheduledCents)}</td>
+                    <td className="num" style={{ textAlign: 'right', color: m.lowestCents < 0 ? 'var(--red)' : undefined }}>
+                      {formatEur(m.lowestCents)}
+                      <span className="muted" style={{ display: 'block', fontSize: 11 }}>
+                        {formatFr(m.lowestDate)}</span>
+                    </td>
+                    <td className="num" style={{ textAlign: 'right' }}>{formatEur(m.closingCents)}</td>
+                    <td className="num" style={{ textAlign: 'right', opacity: 0.75 }}>
+                      {formatEur(m.closingWithBudgetCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </div>
+      )}
 
       {data === undefined ? <p className="muted">Calcul en cours…</p> : (
         <>

@@ -4,6 +4,7 @@ import { useAccounts } from '../hooks/useData';
 import { operationService } from '../services/operationService';
 import { OperationForm } from '../components/OperationForm';
 import { TransferForm } from '../components/TransferForm';
+import { StatementImport } from '../components/StatementImport';
 import type { Database } from '../types';
 
 type Tab = 'operation' | 'virement';
@@ -43,6 +44,15 @@ export function ComptabiliserScreen({ database }: { database: Database }) {
           <TransferForm dbId={dbId} accounts={accounts}
             onDone={() => confirm('Virement enregistré sur les deux comptes.')} />
         )}
+
+        <hr className="sep" />
+        <strong>Importer un relevé de banque</strong>
+        <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+          Fichier CSV ou OFX téléchargé depuis votre banque. Il est analysé sur cet
+          appareil ; chaque ligne est présentée avant écriture, et celles déjà
+          présentes dans la base sont signalées.
+        </p>
+        <StatementImport dbId={dbId} accounts={accounts} />
 
         {done && (
           <p className="muted" style={{ marginTop: 10 }} role="status">

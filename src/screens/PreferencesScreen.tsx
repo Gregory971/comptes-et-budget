@@ -1,11 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useReferentials } from '../hooks/useData';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
+import { ExportButton } from '../components/ExportButton';
 import { IconPicker } from '../components/IconPicker';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
-import { backupService } from '../services/backupService';
+import {
+  chooseFile, forgetFile, run as runAutoBackup, status as autoBackupStatus,
+  daysSince, type AutoBackupStatus,
+} from '../services/autoBackupService';
 import { dbService } from '../services/dbService';
+import { readTheme, writeTheme, THEME_LABEL, type ThemeMode } from '../services/themeService';
+import {
+  ensurePersistentStorage, formatBytes, storageStatus, type StorageStatus,
+} from '../services/storageService';
 import { REGION_LABEL, holidaysOfYear, type Region } from '../utils/holidays';
 import { formatFr } from '../utils/date';
 import type { Category, CategoryGroup, Database } from '../types';
@@ -269,6 +277,15 @@ function CategoriesTab({ database }: { database: Database }) {
 function GeneralTab({ database }: { database: Database }) {
   const [name, setName] = useState(database.name);
   const [msg, setMsg] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>(() => readTheme());
+  const [storage, setStorage] = useState<StorageStatus | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  const [auto, setAuto] = useState<AutoBackupStatus | null>(null);
+  const [autoBusy, setAutoBusy] = useState(false);
+
+  useEffect(() => { void storageStatus().then(setStorage); }, []);
+  useEffect(() => { void autoBackupStatus().then(setAuto); }, []);
   const year = new Date().getFullYear();
   const holidays = [...holidaysOfYear(year, database.holidayRegion).entries()]
     .sort(([a], [b]) => a.localeCompare(b));
@@ -284,6 +301,60 @@ function GeneralTab({ database }: { database: Database }) {
       </div>
       <div className="field"><label htmlFor="ge-cur">Devise</label>
         <input id="ge-cur" value="Euro (€)" disabled /></div>
+
+      <hr className="sep" />
+
+      <strong>Apparence</strong>
+      <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+        Réglage propre à cet appareil : il n’entre pas dans la sauvegarde.
+        « Système » suit le mode clair ou sombre de l’ordinateur ou du téléphone.
+      </p>
+      <div className="segmented" role="group" aria-label="Thème d’affichage">
+        {(['systeme', 'clair', 'sombre'] as ThemeMode[]).map(m => (
+          <button key={m} type="button" className={theme === m ? 'on' : ''}
+            aria-pressed={theme === m}
+            onClick={() => { writeTheme(m); setTheme(m); }}>{THEME_LABEL[m]}</button>
+        ))}
+      </div>
+
+      <hr className="sep" />
+
+      <strong>Stockage de la base sur cet appareil</strong>
+      <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+        Sans classement « persistant », le navigateur peut effacer la base pour
+        récupérer de l’espace disque, et Safari le fait d’office au bout de sept
+        jours sans ouverture. Le classement demandé ici met la base à l’abri de
+        cette suppression automatique ; vous seul pouvez encore l’effacer.
+        Une sauvegarde exportée régulièrement reste la protection de dernier ressort.
+      </p>
+      <table className="simple" style={{ maxWidth: 460 }}>
+        <tbody>
+          <tr><td className="muted">État</td><td><strong>{
+            storage === null ? '…'
+              : storage.state === 'persistant' ? '🔒 Persistant — à l’abri de l’éviction'
+              : storage.state === 'temporaire' ? '⚠️ Temporaire — suppression possible par le navigateur'
+              : 'Non géré par ce navigateur'
+          }</strong></td></tr>
+          {storage?.usageBytes !== undefined && (
+            <tr><td className="muted">Occupation</td>
+              <td>{formatBytes(storage.usageBytes)} sur {formatBytes(storage.quotaBytes)} accordés</td></tr>
+          )}
+        </tbody>
+      </table>
+      {storage?.state === 'temporaire' && (
+        <button className="btn" style={{ marginTop: 10 }} disabled={asking}
+          onClick={async () => {
+            setAsking(true);
+            const next = await ensurePersistentStorage();
+            setStorage(next);
+            setMsg(next.state === 'persistant'
+              ? 'Stockage persistant accordé : la base ne sera plus évincée automatiquement.'
+              : 'Le navigateur a refusé pour l’instant. Il l’accorde en général après quelques ouvertures de l’application, ou après son installation sur l’appareil.');
+            setAsking(false);
+          }}>
+          {asking ? 'Demande en cours…' : 'Demander le stockage persistant'}
+        </button>
+      )}
 
       <hr className="sep" />
 
@@ -325,12 +396,78 @@ function GeneralTab({ database }: { database: Database }) {
           conserver les saisies faites des deux côtés.</li>
       </ol>
       <div className="inline">
-        <button className="btn" onClick={async () => {
-          const file = await backupService.download();
-          setMsg(`Sauvegarde exportée : ${file}`);
-        }}>⬆️ Exporter la sauvegarde</button>
+        <ExportButton className="btn" label="Exporter la sauvegarde" />
         <ImportButton label="Importer une sauvegarde" />
       </div>
+
+      <hr className="sep" />
+
+      <strong>Sauvegarde automatique</strong>
+      <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+        Désignez un fichier une seule fois — par exemple dans « Google Drive pour
+        ordinateur » — et l’application y réécrit la sauvegarde à chaque ouverture
+        et à chaque fermeture de l’onglet, sans nouvelle question.
+        {' '}<strong>Ce fichier est écrit en clair</strong> : chiffrer supposerait de
+        retenir la phrase secrète d’une session à l’autre, donc de l’écrire quelque
+        part. Pour un dossier partagé, préférez l’export manuel chiffré ci-dessus.
+      </p>
+      {auto && !auto.supported ? (
+        <p className="muted" style={{ fontSize: 13 }}>
+          Ce navigateur ne permet pas d’écrire directement dans un fichier
+          (fonction disponible sur Chrome, Edge et Opera). L’application se limite
+          ici à rappeler la date du dernier export
+          {auto.lastManualExportAt
+            ? ` — il remonte à ${daysSince(auto.lastManualExportAt)} jour(s).`
+            : ' — aucun export effectué depuis cet appareil.'}
+        </p>
+      ) : auto && (
+        <>
+          <table className="simple" style={{ maxWidth: 520 }}>
+            <tbody>
+              <tr><td className="muted">Fichier</td>
+                <td>{auto.configured ? <strong>{auto.fileName}</strong> : 'aucun'}</td></tr>
+              {auto.configured && (
+                <tr><td className="muted">Dernière écriture</td>
+                  <td>{auto.lastRunAt
+                    ? `${new Date(auto.lastRunAt).toLocaleString('fr-FR')} (il y a ${daysSince(auto.lastRunAt)} j)`
+                    : 'jamais'}</td></tr>
+              )}
+              {auto.lastError && (
+                <tr><td className="muted">Dernière erreur</td>
+                  <td style={{ color: 'var(--red)' }}>{auto.lastError}</td></tr>
+              )}
+            </tbody>
+          </table>
+          <div className="inline" style={{ marginTop: 10 }}>
+            <button className="btn" disabled={autoBusy} onClick={async () => {
+              setAutoBusy(true);
+              try {
+                setAuto(await chooseFile(`${database.name.replace(/[^\w-]+/g, '_')}.cbjson`));
+                setMsg('Sauvegarde automatique activée.');
+              } catch (e) {
+                setMsg((e as Error).message);
+              } finally { setAutoBusy(false); }
+            }}>
+              {auto.configured ? 'Changer de fichier' : 'Choisir le fichier'}
+            </button>
+            {auto.configured && (
+              <>
+                <button className="btn ghost" disabled={autoBusy} onClick={async () => {
+                  setAutoBusy(true);
+                  setAuto(await runAutoBackup());
+                  setMsg('Sauvegarde écrite.');
+                  setAutoBusy(false);
+                }}>Sauvegarder maintenant</button>
+                <button className="btn ghost" disabled={autoBusy} onClick={async () => {
+                  await forgetFile();
+                  setAuto(await autoBackupStatus());
+                  setMsg('Sauvegarde automatique désactivée.');
+                }}>Désactiver</button>
+              </>
+            )}
+          </div>
+        </>
+      )}
       {msg && <p className="muted" role="status">{msg}</p>}
     </div>
   );

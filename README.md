@@ -27,8 +27,17 @@ traceur. Montants en euros.
 - **Budgets** mensuels par catégorie, avec reste à vivre.
 - **Biens et projets d'épargne**, patrimoine estimé.
 - **Bilans** mois / trimestre / année, graphiques SVG sans dépendance externe.
-- **Sauvegarde** exportable, réimportable en mode *fusion* (la modification la
-  plus récente l'emporte) ou *remplacement*.
+- **Import de relevés** CSV ou OFX : format déduit du contenu, doublons
+  signalés, tiers et catégorie proposés, rien d'écrit avant confirmation.
+- **Rapprochement bancaire** : écart entre le solde du relevé et le total des
+  opérations pointées, pointage à l'unité ou en bloc.
+- **Trésorerie prévisionnelle** sur 3 à 24 mois, avec la date du premier
+  passage sous zéro et le point bas de chaque mois.
+- **Thème** clair, sombre ou réglé par le système.
+- **Sauvegarde** exportable — en clair ou **chiffrée** par phrase secrète —,
+  réimportable en mode *fusion* (la modification la plus récente l'emporte) ou
+  *remplacement*, et **écriture automatique** dans un fichier désigné une fois
+  (navigateurs Chromium).
 
 ## Installation en application
 
@@ -61,6 +70,15 @@ La politique est définie dans `src/utils/csp.ts` et vérifiée par
 `src/utils/csp.test.ts`, afin qu'un assouplissement ultérieur fasse échouer la
 publication plutôt que de passer inaperçu.
 
+Deux compléments depuis la version 2.5.0 :
+
+- la base demande le **stockage persistant** au navigateur
+  (`navigator.storage.persist()`), qui la met à l'abri de l'éviction
+  automatique sous pression disque ou après une longue absence ;
+- la sauvegarde exportée peut être **chiffrée** (AES-GCM 256, clé dérivée par
+  PBKDF2-SHA256, 600 000 itérations) : le fichier déposé dans un dossier
+  synchronisé n'est plus lisible sans la phrase secrète.
+
 ## Conventions techniques
 
 - **Dates civiles** `AAAA-MM-JJ` (`src/utils/date.ts`), jamais d'horodatage ISO
@@ -75,7 +93,7 @@ publication plutôt que de passer inaperçu.
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 106 tests unitaires et d'intégration
+npm test               # 194 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { backupService, type Backup, type BackupSummary } from '../services/backupService';
+import { isEncrypted } from '../services/cryptoService';
 import { useStore } from '../store/useStore';
 import { Modal } from './Modal';
 
@@ -16,6 +17,10 @@ export function ImportButton({ label = 'Importer' }: { label?: string }) {
   const setActiveDbId = useStore(s => s.setActiveDbId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ backup: Backup; summary: BackupSummary } | null>(null);
+  // Fichier chiffré : le contenu attend la phrase secrète avant toute analyse.
+  const [locked, setLocked] = useState<{ text: string; name: string } | null>(null);
+  const [phrase, setPhrase] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
   const [mode, setMode] = useState<'replace' | 'merge'>('merge');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,10 +28,29 @@ export function ImportButton({ label = 'Importer' }: { label?: string }) {
 
   async function onFile(file: File) {
     setError(null);
+    const text = await file.text();
+    if (isEncrypted(text)) {
+      setPhrase('');
+      setLocked({ text, name: file.name });
+      return;
+    }
     try {
-      setPending(await backupService.inspect(await file.text()));
+      setPending(await backupService.inspect(text));
     } catch (e) {
       setError((e as Error).message);
+    }
+  }
+
+  async function unlock() {
+    if (!locked) return;
+    setUnlocking(true);
+    try {
+      setPending(await backupService.inspect(locked.text, phrase));
+      setLocked(null); setPhrase('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUnlocking(false);
     }
   }
 
@@ -70,6 +94,27 @@ export function ImportButton({ label = 'Importer' }: { label?: string }) {
           <p role="status">{done}</p>
           <div className="row"><span />
             <button className="btn" onClick={() => setDone(null)}>Fermer</button></div>
+        </Modal>
+      )}
+
+      {locked && (
+        <Modal title="Sauvegarde chiffrée" onClose={() => setLocked(null)} width={480}>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Le fichier <strong>{locked.name}</strong> est chiffré. Indiquez la phrase
+            secrète choisie lors de l’export ; elle n’est enregistrée nulle part.
+          </p>
+          <div className="field">
+            <label htmlFor="imp-phrase">Phrase secrète</label>
+            <input id="imp-phrase" type="password" value={phrase} autoFocus autoComplete="current-password"
+              onChange={e => setPhrase(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void unlock(); }} />
+          </div>
+          <div className="row">
+            <button className="btn ghost" onClick={() => setLocked(null)}>Annuler</button>
+            <button className="btn" onClick={unlock} disabled={unlocking || phrase === ''}>
+              {unlocking ? 'Déchiffrement…' : 'Ouvrir'}
+            </button>
+          </div>
         </Modal>
       )}
 

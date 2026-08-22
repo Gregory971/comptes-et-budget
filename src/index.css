@@ -32,20 +32,71 @@
   --r-card:18px; --r-card-sm:16px; --r-ctl:10px; --r-pill:999px; --sidebar-w:264px;
   --font-title:'Space Grotesk',system-ui,sans-serif;
 }
+/* ---- Thème sombre ----
+   Le modèle de données annonçait un thème « clair | sombre » depuis la v1 sans
+   qu'aucune règle ne l'applique : le champ était mort. La bascule se joue
+   désormais sur un attribut « data-mode » posé sur <html>, indépendant de
+   « data-theme » qui distingue déjà les profils perso et pro.
+
+   Trois états : « clair », « sombre » et le réglage du système, qui est le
+   défaut — d'où la duplication du bloc, la seconde version ne s'appliquant que
+   si l'utilisateur n'a pas explicitement demandé le thème clair. Seules les
+   variables changent : aucune règle de mise en page n'est dupliquée. */
+:root[data-mode="sombre"]{
+  /* Surfaces */
+  --bg:oklch(0.19 0.015 240); --surface:oklch(0.245 0.018 240); --row-alt:oklch(0.285 0.018 240);
+  --sidebar:oklch(0.155 0.02 240); --sidebar-card:oklch(0.25 0.02 240);
+  --sidebar-txt:oklch(0.82 0.01 240); --sidebar-dot:oklch(0.45 0.02 240);
+  --topbar:oklch(0.155 0.02 240); --topbar-d:oklch(0.30 0.02 240);
+  /* Accents */
+  --accent:oklch(0.66 0.14 195); --accent-d:oklch(0.58 0.13 195);
+  --second:oklch(0.68 0.14 45);
+  /* Texte */
+  --txt:oklch(0.94 0.008 240); --muted:oklch(0.74 0.012 240); --muted-2:oklch(0.68 0.012 240);
+  /* Lignes */
+  --line:oklch(0.35 0.015 240); --line-soft:oklch(0.31 0.015 240);
+  --field-line:oklch(0.40 0.015 240); --track:oklch(0.33 0.015 240);
+  /* Sémantique — remontées en clarté pour rester lisibles sur fond sombre */
+  --green:oklch(0.74 0.15 150); --red:oklch(0.70 0.17 25); --orange:oklch(0.76 0.14 55);
+  /* Formes : inchangées, seules les couleurs basculent. */
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-mode="clair"]){
+    /* Surfaces */
+    --bg:oklch(0.19 0.015 240); --surface:oklch(0.245 0.018 240); --row-alt:oklch(0.285 0.018 240);
+    --sidebar:oklch(0.155 0.02 240); --sidebar-card:oklch(0.25 0.02 240);
+    --sidebar-txt:oklch(0.82 0.01 240); --sidebar-dot:oklch(0.45 0.02 240);
+    --topbar:oklch(0.155 0.02 240); --topbar-d:oklch(0.30 0.02 240);
+    /* Accents */
+    --accent:oklch(0.66 0.14 195); --accent-d:oklch(0.58 0.13 195);
+    --second:oklch(0.68 0.14 45);
+    /* Texte */
+    --txt:oklch(0.94 0.008 240); --muted:oklch(0.74 0.012 240); --muted-2:oklch(0.68 0.012 240);
+    /* Lignes */
+    --line:oklch(0.35 0.015 240); --line-soft:oklch(0.31 0.015 240);
+    --field-line:oklch(0.40 0.015 240); --track:oklch(0.33 0.015 240);
+    /* Sémantique — remontées en clarté pour rester lisibles sur fond sombre */
+    --green:oklch(0.74 0.15 150); --red:oklch(0.70 0.17 25); --orange:oklch(0.76 0.14 55);
+    /* Formes : inchangées, seules les couleurs basculent. */
+    color-scheme:dark;
+  }
+}
+
 *{box-sizing:border-box}
 html,body,#root{height:100%}
 body{margin:0;font-family:'Manrope',system-ui,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
 h1,h2,h3,.num{font-family:var(--font-title)}
 ::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:oklch(0.85 0.01 230);border-radius:8px}
+::-webkit-scrollbar-thumb{background:var(--track);border-radius:8px}
 button{font-family:inherit;cursor:pointer}
-input,select{padding:10px 12px;border:1px solid var(--field-line);border-radius:var(--r-ctl);font-size:14px;background:#fff;color:var(--txt);width:100%;font-family:inherit}
+input,select{padding:10px 12px;border:1px solid var(--field-line);border-radius:var(--r-ctl);font-size:14px;background:var(--surface);color:var(--txt);width:100%;font-family:inherit}
 input:focus,select:focus{outline:none;border-color:var(--accent)}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
 .field{margin-bottom:12px}
 .btn{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:var(--r-pill);font-weight:700;font-size:13px}
 .btn:hover{background:var(--topbar-d)}
-.btn.ghost{background:#fff;color:var(--txt);border:1px solid var(--line)}
+.btn.ghost{background:var(--surface);color:var(--txt);border:1px solid var(--line)}
 .btn.ghost:hover{background:var(--row-alt)}
 .muted{color:var(--muted)}
 .row{display:flex;justify-content:space-between;align-items:center}
@@ -178,7 +229,7 @@ table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
 /* ---- Onboarding ---- */
 .onb{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2156b8,#0f1b2d)}
-.onb .box{background:#fff;border-radius:16px;padding:32px;width:420px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.onb .box{background:var(--surface);border-radius:16px;padding:32px;width:420px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
 .onb h1{margin:0 0 6px;font-size:22px}.onb p.lead{color:var(--muted);margin:0 0 20px}
 .steps{display:flex;gap:6px;margin-bottom:20px}.steps span{flex:1;height:4px;border-radius:2px;background:var(--line)}.steps span.on{background:var(--accent)}
 
@@ -193,11 +244,11 @@ table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
    le corps défile ; le voile défile à son tour sur les écrans très bas. */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,27,45,.45);display:flex;
   align-items:center;justify-content:center;z-index:50;overflow-y:auto;padding:20px}
-.modal{background:#fff;border-radius:14px;padding:22px;width:460px;max-width:94vw;
+.modal{background:var(--surface);border-radius:14px;padding:22px;width:460px;max-width:94vw;
   box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;display:flex;flex-direction:column}
 .modal-body{margin-top:12px;overflow-y:auto;min-height:0}
 .base-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.base-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px;font-size:14px;cursor:pointer}
+.base-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:10px 12px;font-size:14px;cursor:pointer}
 .base-item:hover{background:#f3f6fb}
 .base-item.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(33,86,184,.15)}
 .prof-dot{width:10px;height:10px;border-radius:50%}
@@ -435,7 +486,7 @@ details[open] > summary { margin-bottom: 4px; }
   flex-shrink: 0;
 }
 .segmented button {
-  background: #fff;
+  background: var(--surface);
   border: none;
   padding: 7px 14px;
   font-size: 13px;
@@ -444,7 +495,7 @@ details[open] > summary { margin-bottom: 4px; }
 }
 .segmented button + button { border-left: 1px solid var(--line); }
 .segmented button.on { background: var(--accent); color: #fff; }
-.segmented button:not(.on):hover { background: #eef2f6; }
+.segmented button:not(.on):hover { background: var(--row-alt); }
 
 /* Bandeau de synthèse : réel + échéances − reste à vivre = solde estimé. */
 .forecast-bar {
@@ -474,17 +525,17 @@ details[open] > summary { margin-bottom: 4px; }
 }
 .forecast-bar .total {
   border-left: 2px solid var(--accent);
-  background: #fff;
+  background: var(--surface);
   border-radius: 0 7px 7px 0;
 }
 .forecast-bar .pos { color: var(--green); }
 .forecast-bar .neg { color: var(--red); }
 
 /* Lignes prévisionnelles : grisées et en italique, non sélectionnables. */
-.opstable tr.prevu { cursor: default; background: #fbfcfe; color: var(--muted); }
+.opstable tr.prevu { cursor: default; background: var(--row-alt); color: var(--muted); }
 .opstable tr.prevu td { font-style: italic; }
 .opstable tr.prevu .num { font-style: normal; }
-.opstable tr.prevu:hover { background: #f4f7fb; }
+.opstable tr.prevu:hover { background: var(--track); }
 /* Les estimations budgétaires sont plus effacées que les échéances certaines. */
 .opstable tr.prevu.estime td { opacity: .8; }
 .opstable tr.prevu.estime { border-left: 3px dashed var(--orange); }
@@ -494,7 +545,7 @@ details[open] > summary { margin-bottom: 4px; }
 
 /* Sélecteur d'icône (groupes et catégories) */
 .icon-pick{
-  background:#fff;border:1px solid var(--line);border-radius:6px;
+  background:var(--surface);border:1px solid var(--line);border-radius:6px;
   padding:5px 8px;font-size:16px;line-height:1.2;min-width:38px;
 }
 .icon-pick:hover{border-color:var(--accent)}
@@ -503,7 +554,7 @@ details[open] > summary { margin-bottom: 4px; }
 .icon-grid-titre{margin:0 0 4px;font-size:11px;font-weight:600;color:var(--muted)}
 .icon-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
 .icon-choix{
-  background:#fff;border:1px solid transparent;border-radius:6px;
+  background:var(--surface);border:1px solid transparent;border-radius:6px;
   padding:5px 0;font-size:18px;line-height:1.2;
 }
 .icon-choix:hover{background:var(--row-alt);border-color:var(--line)}

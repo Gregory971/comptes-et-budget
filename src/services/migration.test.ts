@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { AppDB } from './db';
+import { AppDB, SCHEMA_VERSION } from './db';
 
 const NAME = 'migration-v3';
 
@@ -11,7 +11,7 @@ const NAME = 'migration-v3';
  * civiles. C'est le point le plus sensible de la mise à jour : la base de
  * l'utilisateur est convertie en place, sans possibilité de retour arrière.
  */
-describe('migration v3 → v5', () => {
+describe('migration v3 → v6', () => {
   it('convertit montants et dates sans perte', async () => {
     // --- base au format v3, telle qu'elle existe chez l'utilisateur
     const legacy = new Dexie(NAME);
@@ -69,10 +69,10 @@ describe('migration v3 → v5', () => {
     expect((await upgraded.schedules.get('s1'))?.nextDate).toBe('2026-09-15');
     expect((await upgraded.budgets.get('bu1'))?.monthlyAmountCents).toBe(30000);
     expect((await upgraded.assets.get('as1'))?.valueCents).toBe(850000);
-    expect((await upgraded.projects.get('pr1'))?.savedAmountCents).toBe(45075);
+    expect((await upgraded.projects.get('pr1'))?.openingSavedCents).toBe(45075);
     expect((await upgraded.categoryGroups.get('g1'))?.archived).toBe(false);
     expect((await upgraded.databases.get('b1'))?.profile).toBe('perso');
-    expect((await upgraded.databases.get('b1'))?.schemaVersion).toBe(5);
+    expect((await upgraded.databases.get('b1'))?.schemaVersion).toBe(SCHEMA_VERSION);
 
     // v5 : les échéances existantes reçoivent les nouveaux réglages par défaut
     // (comptabilisation manuelle, report au jour ouvrable suivant), et la base
@@ -82,6 +82,11 @@ describe('migration v3 → v5', () => {
     expect(sched?.holidayRule).toBe('suivant');
     expect(sched?.endDate).toBeUndefined();
     expect((await upgraded.databases.get('b1'))?.holidayRegion).toBe('metropole');
+
+    // v6 : jour d'ancrage repris du quantième de la prochaine échéance, et
+    // solde d'ouverture des projets aligné sur l'ancien « déjà épargné ».
+    expect(sched?.anchorDay).toBe(Number(sched!.nextDate.slice(8, 10)));
+    expect((await upgraded.projects.get('pr1'))?.openingSavedCents).toBe(45075);
 
     // Les index composés sont exploitables après migration.
     const aout = await upgraded.operations.where('[dbId+date]')

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useStore, type Screen } from '../store/useStore';
 import { useActiveDatabase, useBases } from '../hooks/useData';
 import { ImportButton } from './ImportButton';
-import { backupService } from '../services/backupService';
+import { ExportButton } from './ExportButton';
 import { Modal } from './Modal';
 import type { Profile } from '../types';
 
@@ -142,8 +142,7 @@ function DefaultActions() {
       <button className="act" onClick={() => setScreen('operations')}>
         <span className="ic" aria-hidden="true">📋</span>Voir les opérations</button>
       <div className="act-sep" />
-      <button className="act" onClick={() => backupService.download()}>
-        <span className="ic" aria-hidden="true">⬆️</span>Exporter</button>
+      <ExportButton />
       <ImportButton />
     </>
   );

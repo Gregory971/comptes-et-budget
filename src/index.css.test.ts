@@ -78,6 +78,48 @@ describe('feuille de style — contrôles à cocher', () => {
     expect(overlay).toContain('overflow-y:auto');
   });
 
+  it('redéfinit toutes les couleurs pour le thème sombre', () => {
+    // Une variable oubliée dans le bloc sombre laisserait une couleur claire
+    // sur fond sombre — texte gris pâle sur gris pâle, illisible. Le contrôle
+    // porte sur la couverture complète, non sur un échantillon.
+    const tokens = (block: string) =>
+      new Set([...block.matchAll(/--([a-z0-9-]+)\s*:/g)].map(m => m[1]));
+
+    const clair = css.slice(css.indexOf(':root{'), css.indexOf('/* ---- Thème sombre'));
+    const sombre = css.slice(css.indexOf(':root[data-mode="sombre"]{'));
+    const sombreBloc = sombre.slice(0, sombre.indexOf('}'));
+
+    // Les variables de forme (rayons, largeurs, police) ne dépendent pas du thème.
+    const formes = new Set(['r-card', 'r-card-sm', 'r-ctl', 'r-pill', 'sidebar-w', 'font-title']);
+    const couleurs = [...tokens(clair)].filter(t => !formes.has(t));
+    const definies = tokens(sombreBloc);
+
+    expect(couleurs.length).toBeGreaterThan(15);
+    expect(couleurs.filter(t => !definies.has(t))).toEqual([]);
+  });
+
+  it('suit le réglage du système tant qu’aucun thème n’est imposé', () => {
+    // Le défaut « systeme » ne pose aucun attribut : sans requête média, le
+    // mode sombre du système resterait sans effet.
+    expect(css).toContain('@media (prefers-color-scheme:dark)');
+    expect(css).toContain(':root:not([data-mode="clair"])');
+    // color-scheme : sans lui, les contrôles natifs restent en blanc.
+    expect(css).toContain('color-scheme:dark');
+  });
+
+  it('n’écrit plus de fond blanc en dur sur les surfaces', () => {
+    // Ces règles doivent suivre le thème : un #fff figé y resterait blanc en
+    // mode sombre. Le blanc reste légitime comme couleur de TEXTE sur fond
+    // sombre (barre latérale, boutons pleins).
+    for (const regle of ['.modal{', '.btn.ghost{', '.onb .box{', 'input,select{']) {
+      const i = css.indexOf(regle);
+      expect(i).toBeGreaterThan(-1);
+      const bloc = css.slice(i, css.indexOf('}', i));
+      expect(bloc).not.toContain('background:#fff');
+      expect(bloc).not.toContain('background: #fff');
+    }
+  });
+
   it('rend le libellé des lignes radio lisible et extensible', () => {
     const label = document.createElement('label');
     label.className = 'radio-row';

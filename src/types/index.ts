@@ -91,7 +91,8 @@ export interface Preferences extends Tracked {
   id: string; dbId: string;
   dateFormat: string; weekStart: number;
   defaultAccountId?: string; defaultPaymentMethodId?: string;
-  theme: 'clair' | 'sombre';
+  // Le thème d'affichage n'est plus ici : c'est un réglage d'appareil, non une
+  // donnée de la base — voir src/services/themeService.ts.
 }
 
 export type Periodicity = 'unique' | 'mensuelle' | 'trimestrielle' | 'annuelle';
@@ -102,6 +103,13 @@ export interface Schedule extends Tracked {   // Échéance (opération programm
   kind: Kind;
   periodicity: Periodicity;
   nextDate: Ymd;             // prochaine échéance (date théorique)
+  /**
+   * Quantième d'origine de l'échéance (1 à 31), conservé pour que la date ne
+   * dérive pas en traversant un mois court : un prélèvement du 31 revient au 31
+   * après un passage au 28 ou 30 février. Absent des bases antérieures à la
+   * v6 : le quantième de `nextDate` sert alors de repli.
+   */
+  anchorDay?: number;
   /** Dernière échéance à produire ; au-delà, la programmation s'arrête. */
   endDate?: Ymd;
   /** true : comptabilisation automatique au lancement ; false : sur confirmation. */
@@ -130,7 +138,24 @@ export interface Asset extends Tracked {      // Bien (patrimoine)
 
 export interface Project extends Tracked {    // Projet d'épargne
   id: string; dbId: string; name: string;
-  targetAmountCents: Cents; // objectif
-  savedAmountCents: Cents;  // déjà épargné
+  targetAmountCents: Cents;    // objectif
+  /**
+   * Solde d'OUVERTURE du projet : ce qui était déjà mis de côté avant tout
+   * rattachement d'opération. L'épargne affichée est ce solde augmenté des
+   * mouvements rattachés au projet (voir projectService.saved) — un seul
+   * montant fait foi, là où l'ancien `savedAmountCents` cohabitait avec le
+   * total des opérations rattachées sans qu'aucun des deux ne prime.
+   */
+  openingSavedCents: Cents;
   deadline?: Ymd; note?: string;
+}
+
+/**
+ * Réglage propre à l'appareil (table `settings`), hors sauvegarde : il peut
+ * porter un objet non sérialisable en JSON, tel qu'un FileSystemFileHandle.
+ */
+export interface Setting {
+  key: string;
+  value: unknown;
+  updatedAt: string;
 }

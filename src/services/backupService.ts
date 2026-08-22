@@ -1,4 +1,5 @@
 import { db, uid, stamp, SCHEMA_VERSION } from './db';
+import { decryptText, encryptText, isEncrypted } from './cryptoService';
 import { dbService } from './dbService';
 import { toCents } from '../utils/money';
 import { normalizeYmd, today, toYmd } from '../utils/date';
@@ -7,7 +8,7 @@ import type {
   Operation, Preferences, Schedule, Budget, Asset, Project,
 } from '../types';
 
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 export interface Backup {
   format: 'comptes-budget';
@@ -85,10 +86,20 @@ export const backupService = {
     };
   },
 
-  async download(suffix = ''): Promise<string> {
+  /** Contenu du fichier de sauvegarde, chiffré si une phrase est fournie. */
+  async serialize(passphrase?: string): Promise<string> {
+    const json = JSON.stringify(await this.export());
+    return passphrase ? encryptText(json, passphrase) : json;
+  },
+
+  async download(suffix = '', passphrase?: string): Promise<string> {
     const data = await this.export();
-    const name = `${data.database.name.replace(/[^\w-]+/g, '_')}_${toYmd(new Date())}${suffix}.cbjson`;
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const marque = passphrase ? '-chiffre' : '';
+    const name = `${data.database.name.replace(/[^\w-]+/g, '_')}_${toYmd(new Date())}${suffix}${marque}.cbjson`;
+    const contenu = passphrase
+      ? await encryptText(JSON.stringify(data), passphrase)
+      : JSON.stringify(data);
+    const blob = new Blob([contenu], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = name; a.click();
@@ -102,7 +113,16 @@ export const backupService = {
    * Correction P2 : l'import supprimait puis réécrivait toutes les tables sans
    * confirmation, sans sauvegarde préalable et sans vérifier le champ version.
    */
-  async inspect(json: string): Promise<{ backup: Backup; summary: BackupSummary }> {
+  /** Vrai si le fichier est chiffré : l'appelant doit demander la phrase secrète. */
+  isEncrypted,
+
+  async inspect(json: string, passphrase?: string): Promise<{ backup: Backup; summary: BackupSummary }> {
+    if (isEncrypted(json)) {
+      if (!passphrase) {
+        throw new Error('Sauvegarde chiffrée : indiquez la phrase secrète pour l’ouvrir.');
+      }
+      json = await decryptText(json, passphrase);
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(json);
@@ -276,10 +296,13 @@ export function upgradeBackup(b: Backup): Backup {
     }),
     schedules: (b.schedules ?? []).map(s => {
       const legacy = s as unknown as { amount?: number };
+      const nextDate = normalizeYmd(String(s.nextDate ?? today()));
       return row({
         ...s,
         amountCents: s.amountCents ?? toCents(n(legacy.amount)),
-        nextDate: normalizeYmd(String(s.nextDate ?? today())),
+        nextDate,
+        // Jour d'ancrage (v6) : à défaut, le quantième de la prochaine échéance.
+        anchorDay: s.anchorDay ?? Number(nextDate.slice(8, 10)),
       });
     }),
     budgets: (b.budgets ?? []).map(x => {
@@ -295,11 +318,15 @@ export function upgradeBackup(b: Backup): Backup {
       });
     }),
     projects: (b.projects ?? []).map(p => {
-      const legacy = p as unknown as { targetAmount?: number; savedAmount?: number };
+      const legacy = p as unknown as {
+        targetAmount?: number; savedAmount?: number; savedAmountCents?: number;
+      };
       return row({
         ...p,
         targetAmountCents: p.targetAmountCents ?? toCents(n(legacy.targetAmount)),
-        savedAmountCents: p.savedAmountCents ?? toCents(n(legacy.savedAmount)),
+        // v6 : l'ancien « déjà épargné » devient le solde d'ouverture.
+        openingSavedCents: p.openingSavedCents
+          ?? legacy.savedAmountCents ?? toCents(n(legacy.savedAmount)),
         deadline: p.deadline ? normalizeYmd(String(p.deadline)) : undefined,
       });
     }),

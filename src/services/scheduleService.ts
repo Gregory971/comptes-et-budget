@@ -1,22 +1,36 @@
 import { db, uid, stamp } from './db';
 import { operationService } from './operationService';
-import { addMonths, addYears, today, type Ymd } from '../utils/date';
+import { addMonthsAnchored, addYearsAnchored, dayOfMonth, today, type Ymd } from '../utils/date';
 import { applyHolidayRule, shiftReason, type HolidayRule, type Region } from '../utils/holidays';
 import type { Schedule, Kind, Periodicity, Cents } from '../types';
 
-/** Prochaine occurrence théorique, en date civile (aucune conversion de fuseau). */
-export function advance(date: Ymd, p: Periodicity): Ymd {
-  if (p === 'mensuelle') return addMonths(date, 1);
-  if (p === 'trimestrielle') return addMonths(date, 3);
-  if (p === 'annuelle') return addYears(date, 1);
+/**
+ * Prochaine occurrence théorique, en date civile (aucune conversion de fuseau).
+ *
+ * `anchorDay` est le quantième d'origine de l'échéance. Il est indispensable :
+ * sans lui, chaque calcul repart de la date déjà écrêtée par un mois court et
+ * la dérive devient définitive (31/01 → 28/02 → 28/03 → 28/04…). À défaut, on
+ * retombe sur le quantième de la date fournie — comportement des bases
+ * antérieures à la v6.
+ */
+export function advance(date: Ymd, p: Periodicity, anchorDay = dayOfMonth(date)): Ymd {
+  if (p === 'mensuelle') return addMonthsAnchored(date, 1, anchorDay);
+  if (p === 'trimestrielle') return addMonthsAnchored(date, 3, anchorDay);
+  if (p === 'annuelle') return addYearsAnchored(date, 1, anchorDay);
   return date;
 }
+
+/** Quantième de référence d'une échéance, avec repli sur sa prochaine date. */
+export const anchorOf = (s: Pick<Schedule, 'nextDate' | 'anchorDay'>): number =>
+  s.anchorDay ?? dayOfMonth(s.nextDate);
 
 const sign = (kind: Kind, cents: Cents) => (kind === 'depense' ? -Math.abs(cents) : Math.abs(cents));
 
 export interface ScheduleInput {
   dbId: string; accountId: string; amountCents: Cents; kind: Kind; periodicity: Periodicity;
   nextDate: Ymd; endDate?: Ymd; autoPost: boolean; holidayRule: HolidayRule;
+  /** Quantième de référence ; déduit de nextDate s'il n'est pas fourni. */
+  anchorDay?: number;
   payeeId?: string; categoryId?: string; paymentMethodId?: string;
   label?: string; reference?: string; note?: string;
   assetId?: string; projectId?: string;
@@ -55,7 +69,7 @@ export function nextOccurrences(schedule: Schedule, region: Region, count = 3): 
       reason: effectiveDate === planned ? null : shiftReason(planned, region),
     });
     if (schedule.periodicity === 'unique') break;
-    planned = advance(planned, schedule.periodicity);
+    planned = advance(planned, schedule.periodicity, anchorOf(schedule));
   }
   return out;
 }
@@ -81,13 +95,25 @@ export const scheduleService = {
     const s: Schedule = {
       id: uid(), active: true, updatedAt: stamp(),
       ...input, amountCents: sign(input.kind, input.amountCents),
+      // Le quantième saisi fait foi pour toutes les occurrences suivantes.
+      anchorDay: input.anchorDay ?? dayOfMonth(input.nextDate),
     };
     await db.schedules.add(s);
     return s;
   },
 
+  /**
+   * Modification d'une échéance. Changer la date de la prochaine occurrence
+   * redéfinit le jour d'ancrage : déplacer un prélèvement au 5 doit le fixer au
+   * 5, non le laisser revenir au quantième d'origine.
+   */
   update: (id: string, patch: Partial<Schedule>) =>
-    db.schedules.update(id, { ...patch, updatedAt: stamp() }),
+    db.schedules.update(id, {
+      ...patch,
+      ...(patch.nextDate && patch.anchorDay === undefined
+        ? { anchorDay: dayOfMonth(patch.nextDate) } : {}),
+      updatedAt: stamp(),
+    }),
   remove: (id: string) => db.schedules.delete(id),
 
   /**
@@ -115,11 +141,15 @@ export const scheduleService = {
       await this.update(id, { active: false, lastPostedDate: effectiveDate });
       return;
     }
-    const next = advance(s.nextDate, s.periodicity);
+    const anchorDay = anchorOf(s);
+    const next = advance(s.nextDate, s.periodicity, anchorDay);
     // La programmation s'arrête d'elle-même une fois la date de fin dépassée.
     const finished = Boolean(s.endDate && next > s.endDate);
+    // anchorDay est réaffirmé : sans lui, update() le redéduirait de la
+    // nouvelle date — soit 28 après un passage par février, et la dérive que
+    // cette correction supprime reviendrait par la porte de service.
     await this.update(id, {
-      nextDate: next, lastPostedDate: effectiveDate, active: !finished,
+      nextDate: next, anchorDay, lastPostedDate: effectiveDate, active: !finished,
     });
   },
 

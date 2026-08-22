@@ -1,5 +1,118 @@
 # Journal des modifications
 
+## Version 2.5.0 — 22 août 2026
+
+Quatre chantiers : les défauts relevés à l'audit, l'import de relevés
+bancaires, la sauvegarde chiffrée et automatique, la trésorerie prévisionnelle
+avec rapprochement bancaire.
+
+### Défauts corrigés
+
+**Les échéances de fin de mois dérivaient définitivement.** `advance()`
+s'appuyait sur `addMonths()`, qui borne au dernier jour du mois cible. Un
+prélèvement du 31 janvier devenait le 28 février — ce qui est juste — puis
+repartait de cette date écrêtée : 28 mars, 28 avril, 28 mai. Le prélèvement
+avait changé de jour pour toujours, sans que rien ne le signale, et aucun test
+ne couvrait le cas. Les échéances portent désormais un **jour d'ancrage**
+(`anchorDay`, schéma v6) : le calcul repart du quantième d'origine, si bien que
+le 31 revient au 31 dès que le mois le permet — 31/01, 28/02, 31/03, 30/04. La
+règle vaut aussi pour le 29 février d'une échéance annuelle. Modifier la date à
+la main redéfinit l'ancrage ; les échéances existantes reprennent le quantième
+de leur prochaine occurrence, une ressaisie suffisant à réparer celles qui
+avaient déjà dérivé.
+
+**La base n'était pas à l'abri d'une éviction par le navigateur.** Rien
+n'appelait `navigator.storage.persist()` : IndexedDB restait en stockage
+« best-effort », que le navigateur peut supprimer sous pression disque et que
+WebKit efface d'office au bout de sept jours sans visite. Pour une application
+sans serveur, c'est la perte des comptes. La persistance est demandée au
+lancement, une seule fois, et Préférences → Général affiche l'état obtenu ainsi
+que l'espace occupé, avec un bouton pour relancer la demande après un refus.
+
+**Le thème sombre était déclaré mais inexistant.** `Preferences.theme`
+annonçait « clair | sombre » depuis la v1 sans qu'aucune règle CSS ne
+l'applique. Le thème existe désormais pour de bon : trois états — Système
+(défaut), Clair, Sombre —, réglage propre à l'appareil, posé sur un attribut
+`data-mode` distinct du `data-theme` qui sépare déjà les profils perso et pro.
+Seules les variables de couleur changent ; un test vérifie qu'aucune n'est
+oubliée dans le bloc sombre. Les graphiques suivent le thème.
+
+**Les projets d'épargne affichaient deux montants concurrents** : le « déjà
+épargné » saisi à la main et le total des opérations rattachées, sans qu'aucun
+ne fasse foi. Le premier devient un **solde d'ouverture**, auquel s'ajoutent les
+mouvements rattachés au projet : une seule épargne est affichée. Convention de
+signe explicitée dans l'interface — une somme qui quitte le compte augmente
+l'épargne du projet, une reprise la diminue.
+
+### Import de relevés bancaires (CSV, OFX)
+
+Tout se saisissait à la main. Un relevé téléchargé depuis la banque est
+désormais lu par l'application — sur l'appareil, la politique de sécurité
+interdisant toujours toute requête sortante.
+
+- **Format déduit du contenu** : séparateur point-virgule, virgule, tabulation
+  ou barre verticale ; montant en colonne signée ou en colonnes débit/crédit ;
+  dates JJ/MM/AAAA, JJ-MM-AA, AAAA-MM-JJ ou AAAAMMJJ ; décimale à la virgule ou
+  au point, espaces insécables dans les milliers, signe suffixé ou entre
+  parenthèses. Les fichiers OFX/QFX sont lus en SGML comme en XML. Les exports
+  encore encodés en Windows-1252 sont détectés et relus correctement.
+- **Doublons** : une ligne déjà présente est repérée sur le montant, une
+  fenêtre de quatre jours et, si elle existe, la référence. Chaque opération
+  existante ne peut absorber qu'une seule ligne — deux dépenses identiques le
+  même jour restent deux dépenses. Les doublons sont décochés, non supprimés.
+- **Classement** : le libellé de la banque est confronté aux tiers connus, ce
+  qui rattache l'opération au tiers et à sa catégorie par défaut. Rien n'est
+  deviné au-delà : une ligne non reconnue reste sans catégorie.
+- **Rien n'est écrit avant confirmation**, et les lignes illisibles sont
+  listées avec leur motif plutôt qu'ignorées en silence.
+
+### Sauvegarde chiffrée et automatique
+
+- **Chiffrement facultatif à l'export** : AES-GCM 256 bits, clé dérivée de la
+  phrase secrète par PBKDF2-SHA256 à 600 000 itérations (recommandation OWASP),
+  sel et vecteur d'initialisation tirés au hasard à chaque export. Le fichier
+  destiné à un dossier synchronisé cesse d'être en clair. La phrase n'est
+  conservée nulle part : l'avertissement le dit avant l'export, et l'import la
+  redemande. Un fichier altéré est rejeté au lieu d'être déchiffré en données
+  fausses.
+- **Sauvegarde automatique** : un fichier désigné une seule fois — par exemple
+  dans « Google Drive pour ordinateur » — est réécrit à chaque ouverture et à
+  chaque passage de l'onglet en arrière-plan, sans nouvelle question (File
+  System Access API, navigateurs Chromium). Ce fichier est écrit **en clair**,
+  et l'interface le dit : le chiffrer supposerait de retenir la phrase secrète
+  entre deux sessions, donc de l'écrire quelque part. Un échec d'écriture est
+  enregistré et affiché — une sauvegarde que l'on croit faite est pire que pas
+  de sauvegarde. Sur les navigateurs sans cette API, l'application se limite à
+  rappeler la date du dernier export.
+
+### Trésorerie prévisionnelle et rapprochement bancaire
+
+- **Projection sur 3, 6, 12 ou 24 mois** (écran Bilans), là où le prévisionnel
+  s'arrêtait à la fin du mois affiché. Deux tracés distincts : les échéances
+  programmées, dont la date et le montant sont certains, et les enveloppes
+  budgétaires, qui restent des estimations. L'application annonce le **premier
+  passage sous zéro à la date exacte**, calculé sur les seules échéances — y
+  mêler des estimations produirait des alertes imaginaires. Le détail mensuel
+  donne l'ouverture, les échéances, le **point bas** du mois et sa date : c'est
+  le creux du milieu de mois qui déclenche les frais de découvert, pas le solde
+  de clôture.
+- **Rapprochement bancaire** (écran Comptes, bouton « Rapprocher ») : le
+  pointage existait depuis la v1 mais n'alimentait aucun contrôle. La fenêtre
+  confronte le solde annoncé par le relevé au total des opérations pointées et
+  chiffre l'écart — le seul contrôle capable de déceler une saisie oubliée, une
+  double saisie ou un montant erroné, puisque la base reste cohérente avec
+  elle-même. Les opérations en attente se pointent une à une ou d'un bloc.
+
+### Vérifications
+
+- **194 tests** (contre 106), dont la non-régression complète de la dérive des
+  échéances, la lecture de huit variantes de relevés, la détection des
+  doublons, le chiffrement de bout en bout et la projection de trésorerie.
+- Contrôlé sur l'application construite, dans un navigateur, en thème clair et
+  en thème sombre : import d'un relevé réel puis réimport du même fichier (les
+  cinq lignes détectées en doublon), rapprochement d'un compte, projection sur
+  douze mois avec découvert annoncé au 31/08/2026. Aucune erreur console.
+
 ## Version 2.4.1 — 3 août 2026
 
 ### Fenêtres modales tronquées

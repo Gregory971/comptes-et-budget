@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { MoneyInput } from '../components/MoneyInput';
 import { Modal, ConfirmDialog } from '../components/Modal';
-import { assetService, projectService } from '../services/patrimoineService';
+import { assetService, projectService, type ProjectStatus } from '../services/patrimoineService';
 import { operationService } from '../services/operationService';
 import { formatEur, type Cents } from '../utils/money';
 import { formatFr, type Ymd } from '../utils/date';
@@ -10,6 +10,7 @@ import { hueOf } from '../utils/hue';
 import type { Asset, AssetType, Database, Project } from '../types';
 
 const EMPTY_LINKS: Record<string, Cents> = {};
+const EMPTY_STATUS: ProjectStatus[] = [];
 
 const ASSET_ICON: Record<AssetType, string> = {
   immobilier: '🏠', vehicule: '🚗', placement: '📈', autre: '📦',
@@ -21,15 +22,17 @@ const ASSET_LABEL: Record<AssetType, string> = {
 export function BiensScreen({ database }: { database: Database }) {
   const dbId = database.id;
   const assets = useLiveQuery(() => assetService.list(dbId), [dbId], []) ?? [];
-  const projects = useLiveQuery(() => projectService.list(dbId), [dbId], []) ?? [];
+  // Une seule source de vérité par projet : solde d'ouverture + opérations
+  // rattachées, calculés ensemble par le service.
+  const projectStatus = useLiveQuery(
+    () => projectService.status(dbId), [dbId], EMPTY_STATUS) ?? EMPTY_STATUS;
 
-  // Dépenses et recettes rattachées à chaque bien / projet (nouveau champ de saisie).
+  // Dépenses et recettes rattachées à chaque bien.
   const linked = useLiveQuery(async () => {
     const out: Record<string, Cents> = {};
     for (const a of assets) out[`a:${a.id}`] = await operationService.totalForRef(dbId, 'assetId', a.id);
-    for (const p of projects) out[`p:${p.id}`] = await operationService.totalForRef(dbId, 'projectId', p.id);
     return out;
-  }, [dbId, assets, projects], EMPTY_LINKS) ?? EMPTY_LINKS;
+  }, [dbId, assets], EMPTY_LINKS) ?? EMPTY_LINKS;
 
   const [aName, setAName] = useState('');
   const [aType, setAType] = useState<AssetType>('immobilier');
@@ -75,7 +78,7 @@ export function BiensScreen({ database }: { database: Database }) {
     if (pTarget === null || pTarget <= 0) { setPError('Indiquez un objectif supérieur à zéro.'); return; }
     setPError(null);
     await projectService.create(dbId, {
-      name: pName.trim(), targetAmountCents: pTarget, savedAmountCents: pSaved ?? 0,
+      name: pName.trim(), targetAmountCents: pTarget, openingSavedCents: pSaved ?? 0,
       deadline: pDeadline || undefined,
     });
     setPName(''); setPTarget(null); setPSaved(0); setPDeadline('');
@@ -169,27 +172,27 @@ export function BiensScreen({ database }: { database: Database }) {
           <div style={{ width: 150 }}>
             <MoneyInput label="Objectif (€)" valueCents={pTarget} onChange={setPTarget} /></div>
           <div style={{ width: 160 }}>
-            <MoneyInput label="Déjà épargné (€)" valueCents={pSaved} onChange={setPSaved} /></div>
+            <MoneyInput label="Déjà épargné au départ (€)" valueCents={pSaved} onChange={setPSaved} /></div>
           <div className="field" style={{ width: 160 }}><label htmlFor="pr-dl">Échéance</label>
             <input id="pr-dl" type="date" value={pDeadline} onChange={e => setPDeadline(e.target.value)} /></div>
           <button className="btn" onClick={addProject}>Créer</button>
         </div>
         {pError && <p role="alert" style={{ color: 'var(--red)', margin: 0 }}>{pError}</p>}
 
-        {projects.length === 0 ? <p className="muted">Aucun projet.</p> : projects.map(p => {
-          const pct = p.targetAmountCents > 0
-            ? Math.min(100, p.savedAmountCents / p.targetAmountCents * 100) : 0;
+        {projectStatus.length === 0 ? <p className="muted">Aucun projet.</p> : projectStatus.map(st => {
+          const p = st.project;
+          const pct = st.percent;
           return (
             <div key={p.id} style={{ marginBottom: 16 }}>
               <div className="row">
                 <span><strong>{p.name}</strong>
                   {p.deadline && <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
                     échéance {formatFr(p.deadline)}</span>}</span>
-                <span className="muted">{linked[`p:${p.id}`] ? (
+                <span className="muted">{st.linkedCents !== 0 ? (
                   <span style={{ marginRight: 10 }}>
-                    {formatEur(Math.abs(linked[`p:${p.id}`]))} d’opérations rattachées ·
+                    dont {formatEur(-st.linkedCents)} d’opérations rattachées ·
                   </span>
-                ) : null}{formatEur(p.savedAmountCents)} / {formatEur(p.targetAmountCents)}
+                ) : null}{formatEur(st.savedCents)} / {formatEur(p.targetAmountCents)}
                   <b style={{ color: 'var(--accent)', marginLeft: 6 }}>{pct.toFixed(0)} %</b></span>
               </div>
               <div className="progress" role="progressbar" aria-valuenow={Math.round(pct)}
@@ -198,7 +201,7 @@ export function BiensScreen({ database }: { database: Database }) {
               </div>
               <div className="inline" style={{ marginTop: 8, marginBottom: 0 }}>
                 <button className="btn ghost" style={{ padding: '4px 10px' }}
-                  onClick={() => setSavingOn(p)}>Ajouter un versement</button>
+                  onClick={() => setSavingOn(p)}>Ajuster le solde d’ouverture</button>
                 <button className="iconbtn" aria-label={`Supprimer le projet ${p.name}`}
                   onClick={() => setRemoveProject(p)}>🗑</button>
               </div>
@@ -225,7 +228,11 @@ export function BiensScreen({ database }: { database: Database }) {
   );
 }
 
-/** Versement libre — remplace les boutons figés « + 50 € » / « + 100 € ». */
+/**
+ * Ajustement du solde d'ouverture — pour l'épargne constituée hors application.
+ * Les versements saisis comme opérations et rattachés au projet sont comptés
+ * automatiquement : les additionner ici les compterait deux fois.
+ */
 function SavingModal({ project, onClose }: { project: Project; onClose: () => void }) {
   const [amount, setAmount] = useState<Cents | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -237,11 +244,14 @@ function SavingModal({ project, onClose }: { project: Project; onClose: () => vo
   }
 
   return (
-    <Modal title={`Versement — ${project.name}`} onClose={onClose} width={440}>
+    <Modal title={`Solde d’ouverture — ${project.name}`} onClose={onClose} width={460}>
       <p className="muted" style={{ marginTop: 0 }}>
-        Déjà épargné : {formatEur(project.savedAmountCents)} sur {formatEur(project.targetAmountCents)}.
+        Solde d’ouverture : {formatEur(project.openingSavedCents)} sur un objectif de
+        {' '}{formatEur(project.targetAmountCents)}. Les opérations rattachées au projet
+        s’y ajoutent d’elles-mêmes : n’inscrivez ici que l’épargne constituée hors
+        de l’application.
       </p>
-      <MoneyInput label="Montant du versement (€)" valueCents={amount} onChange={setAmount} autoFocus />
+      <MoneyInput label="Montant à ajouter ou à retirer (€)" valueCents={amount} onChange={setAmount} autoFocus />
       {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
       <div className="row">
         <button className="btn ghost" onClick={() => save(-1)}>Retirer</button>

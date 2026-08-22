@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { signed } from './operationService';
 import { advance } from './scheduleService';
 import { periodRange, shiftAnchor } from './reportService';
-import { upgradeBackup, type Backup } from './backupService';
+import { upgradeBackup, BACKUP_VERSION, type Backup } from './backupService';
 
 describe('signe des montants', () => {
   it('rend une dépense négative et une recette positive', () => {
@@ -72,7 +72,7 @@ describe('reprise des sauvegardes v1', () => {
     } as unknown as Backup;
 
     const out = upgradeBackup(v1);
-    expect(out.version).toBe(2);
+    expect(out.version).toBe(BACKUP_VERSION);
     expect(out.accounts[0].initialBalanceCents).toBe(150050);
     expect(out.accounts[0].startDate).toBe('2026-01-01');
     expect(out.operations[0].amountCents).toBe(-9540);

@@ -1,4 +1,8 @@
+import { useEffect } from 'react';
 import { useStore } from './store/useStore';
+import { applyTheme, readTheme } from './services/themeService';
+import { ensurePersistentStorage } from './services/storageService';
+import { run as runAutoBackup } from './services/autoBackupService';
 import { useAccounts, useActiveDatabase } from './hooks/useData';
 import { Layout } from './components/Layout';
 import { DueSchedules } from './components/DueSchedules';
@@ -15,6 +19,25 @@ import { BiensScreen } from './screens/BiensScreen';
 
 export default function App() {
   const screen = useStore(s => s.screen);
+
+  // Thème d'affichage et mise à l'abri de la base : deux réglages d'appareil,
+  // posés une fois au lancement. La demande de stockage persistant n'est pas
+  // renouvelée si elle a déjà été accordée.
+  useEffect(() => {
+    applyTheme(readTheme());
+    void ensurePersistentStorage();
+  }, []);
+
+  // Sauvegarde automatique : à l'ouverture, puis chaque fois que l'onglet passe
+  // en arrière-plan — c'est le dernier instant sûr avant une fermeture, un
+  // « beforeunload » n'ayant pas le temps d'écrire un fichier.
+  useEffect(() => {
+    void runAutoBackup();
+    const onHide = () => { if (document.visibilityState === 'hidden') void runAutoBackup(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
   const { database, loading } = useActiveDatabase();
   const accounts = useAccounts(database?.id, true);
 

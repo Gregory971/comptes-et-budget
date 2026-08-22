@@ -1,13 +1,13 @@
 import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   Database, Account, Payee, CategoryGroup, Category,
-  PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project,
+  PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project, Setting,
 } from '../types';
 import { normalizeYmd, today } from '../utils/date';
 import { toCents } from '../utils/money';
 
 /** Version du modèle de données ; reportée dans Database.schemaVersion. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export class AppDB extends Dexie {
   databases!: Table<Database, string>;
@@ -22,6 +22,8 @@ export class AppDB extends Dexie {
   budgets!: Table<Budget, string>;
   assets!: Table<Asset, string>;
   projects!: Table<Project, string>;
+  /** Réglages propres à l'appareil : jamais exportés dans la sauvegarde. */
+  settings!: Table<Setting, string>;
 
   constructor(name = 'comptes-budget') {
     super(name);
@@ -61,6 +63,13 @@ export class AppDB extends Dexie {
     this.version(5).stores({
       operations: 'id, dbId, accountId, date, categoryId, payeeId, transferId, assetId, projectId, [dbId+date], [accountId+date]',
     }).upgrade(migrateToV5);
+    // v6 : jour d'ancrage des échéances (corrige la dérive des dates de fin de
+    // mois) et solde d'ouverture des projets d'épargne.
+    this.version(6).upgrade(migrateToV6);
+    // v7 : réglages d'appareil (dossier de sauvegarde automatique). Hors
+    // sauvegarde : ces valeurs n'ont de sens que sur la machine courante, et
+    // un handle de fichier n'est pas transportable.
+    this.version(7).stores({ settings: 'key' });
   }
 }
 
@@ -142,6 +151,31 @@ async function migrateToV5(tx: Transaction): Promise<void> {
   });
   await tx.table('databases').toCollection().modify((d: Record<string, unknown>) => {
     d.holidayRegion ??= 'metropole';
+    d.schemaVersion = SCHEMA_VERSION;
+  });
+}
+
+/**
+ * Jour d'ancrage des échéances et solde d'ouverture des projets.
+ *
+ * Le quantième est repris de la prochaine échéance : c'est la seule valeur
+ * disponible. Une échéance déjà retombée au 28 par l'effet de l'ancien calcul
+ * reste donc au 28 — sa date d'origine n'est nulle part dans la base. Il suffit
+ * de la ressaisir une fois pour qu'elle cesse définitivement de dériver.
+ */
+async function migrateToV6(tx: Transaction): Promise<void> {
+  const at = new Date().toISOString();
+  await tx.table('schedules').toCollection().modify((s: Record<string, unknown>) => {
+    if (s.anchorDay === undefined) s.anchorDay = Number(String(s.nextDate ?? today()).slice(8, 10));
+    s.updatedAt = at;
+  });
+  await tx.table('projects').toCollection().modify((p: Record<string, unknown>) => {
+    // Le montant déjà épargné devient un solde d'ouverture : les opérations
+    // rattachées au projet s'y ajoutent désormais au lieu de le concurrencer.
+    if (p.openingSavedCents === undefined) p.openingSavedCents = p.savedAmountCents ?? 0;
+    p.updatedAt = at;
+  });
+  await tx.table('databases').toCollection().modify((d: Record<string, unknown>) => {
     d.schemaVersion = SCHEMA_VERSION;
   });
 }

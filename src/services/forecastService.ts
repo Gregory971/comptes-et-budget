@@ -1,7 +1,7 @@
 import { operationService } from './operationService';
 import { accountService } from './accountService';
 import { budgetService } from './budgetService';
-import { scheduleService, advance } from './scheduleService';
+import { scheduleService, advance, anchorOf } from './scheduleService';
 import { categoryService } from './referentialService';
 import { monthRange, today, type Ymd } from '../utils/date';
 import { applyHolidayRule, shiftReason, type Region } from '../utils/holidays';
@@ -118,7 +118,7 @@ export const forecastService = {
           }
         }
         if (s.periodicity === 'unique') break;
-        planned = advance(planned, s.periodicity);
+        planned = advance(planned, s.periodicity, anchorOf(s));
       }
     }
 

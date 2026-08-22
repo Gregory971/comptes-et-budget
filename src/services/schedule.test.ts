@@ -183,3 +183,51 @@ describe('échéances : champs enrichis', () => {
     expect(await operationService.totalForRef(DB, 'assetId', 'asset-1')).toBe(toCents(-250));
   });
 });
+
+describe('échéances : jour d’ancrage', () => {
+  beforeEach(reset);
+
+  it('ne dérive plus après un passage par février', async () => {
+    const acc = await accountService.list(DB);
+    const s = await scheduleService.create({
+      dbId: DB, accountId: acc[0].id, amountCents: toCents(900), kind: 'depense',
+      periodicity: 'mensuelle', nextDate: '2026-01-31',
+      autoPost: false, holidayRule: 'exacte', label: 'Loyer',
+    });
+    expect((await db.schedules.get(s.id))?.anchorDay).toBe(31);
+
+    const dates: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      await scheduleService.post(s.id, 'metropole');
+      dates.push((await db.schedules.get(s.id))!.nextDate);
+    }
+    // Avant correction : 28/02 puis 28/03, 28/04, 28/05 — la date ne revenait
+    // jamais au 31.
+    expect(dates).toEqual(['2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31', '2026-06-30']);
+  });
+
+  it('redéfinit l’ancrage quand la date est modifiée à la main', async () => {
+    const acc = await accountService.list(DB);
+    const s = await scheduleService.create({
+      dbId: DB, accountId: acc[0].id, amountCents: toCents(100), kind: 'depense',
+      periodicity: 'mensuelle', nextDate: '2026-01-31',
+      autoPost: false, holidayRule: 'exacte',
+    });
+    await scheduleService.update(s.id, { nextDate: '2026-02-05' });
+    expect((await db.schedules.get(s.id))?.anchorDay).toBe(5);
+    await scheduleService.post(s.id, 'metropole');
+    expect((await db.schedules.get(s.id))?.nextDate).toBe('2026-03-05');
+  });
+
+  it('annonce les prochaines occurrences sans dérive', async () => {
+    const acc = await accountService.list(DB);
+    const s = await scheduleService.create({
+      dbId: DB, accountId: acc[0].id, amountCents: toCents(100), kind: 'depense',
+      periodicity: 'mensuelle', nextDate: '2026-01-31',
+      autoPost: false, holidayRule: 'exacte',
+    });
+    const row = (await db.schedules.get(s.id)) as Schedule;
+    expect(nextOccurrences(row, 'metropole', 3).map(o => o.plannedDate))
+      .toEqual(['2026-01-31', '2026-02-28', '2026-03-31']);
+  });
+});
