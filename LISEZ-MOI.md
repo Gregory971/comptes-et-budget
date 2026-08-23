@@ -65,12 +65,13 @@ Une échéance reportée est comptabilisée à la date effective, mais la procha
 occurrence repart de la date théorique — un prélèvement du 15 reste au 15 le mois
 suivant, même s'il a été reporté au 17.
 
-## Sauvegarde et synchronisation Google Drive
+## Sauvegarde et synchronisation (OneDrive, Google Drive, iCloud)
 
 1. **Exporter** : génère un fichier `.cbjson` contenant toute la base. Le
    chiffrement par phrase secrète y est proposé — recommandé dès lors que le
    fichier part dans un dossier synchronisé.
-2. Enregistrez-le dans votre dossier « Google Drive pour ordinateur ».
+2. Enregistrez-le dans le dossier synchronisé de votre service : « OneDrive »
+   sous Windows, « Google Drive pour ordinateur », iCloud Drive sur Mac.
 3. Sur l'autre appareil : **Importer**, puis choisir :
    - **Fusionner** (recommandé) — pour chaque enregistrement, la modification la
      plus récente est conservée ; aucune saisie locale n'est perdue ;
@@ -80,10 +81,23 @@ Une copie de sécurité de l'état courant est téléchargée automatiquement av
 tout import.
 
 **Sauvegarde automatique** (Chrome, Edge, Opera) : Préférences → Général permet
-de désigner un fichier une fois pour toutes ; l'application y réécrit la
+de désigner une destination une fois pour toutes ; l'application y écrit la
 sauvegarde à chaque ouverture et à chaque passage de l'onglet en arrière-plan.
-Ce fichier est écrit en clair — le chiffrer supposerait de conserver la phrase
-secrète d'une session à l'autre. Pour un dossier partagé, l'export manuel
+
+- **Un dossier** — celui de OneDrive, de Google Drive ou d'iCloud : une copie
+  datée par jour, les dix plus récentes conservées. C'est le choix recommandé :
+  une base vidée par erreur n'écrase pas la dernière copie valide. La purge ne
+  concerne que les fichiers `<Base>_AAAA-MM-JJ.cbjson` ; le reste du dossier
+  n'est jamais touché.
+- **Un fichier** : une seule copie, réécrite à chaque fois ; l'historique dépend
+  alors du versionnage du service.
+
+L'application se contente d'écrire un fichier local : c'est le client de
+synchronisation installé sur la machine qui l'envoie dans le nuage. Aucune
+requête réseau n'est ajoutée, et la politique de sécurité reste inchangée.
+
+Ces fichiers sont écrits en clair — les chiffrer supposerait de conserver la
+phrase secrète d'une session à l'autre. Pour un dossier partagé, l'export manuel
 chiffré reste la bonne réponse.
 
 **Stockage de la base** : l'application demande au navigateur le classement
@@ -124,7 +138,7 @@ et le solde d'ouverture des projets ; la v7, les réglages propres à l'appareil
 
     npm install
     npm run dev            # serveur local
-    npm test               # 194 tests unitaires et d'intégration
+    npm test               # 200 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

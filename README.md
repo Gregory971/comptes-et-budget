@@ -36,8 +36,9 @@ traceur. Montants en euros.
 - **Thème** clair, sombre ou réglé par le système.
 - **Sauvegarde** exportable — en clair ou **chiffrée** par phrase secrète —,
   réimportable en mode *fusion* (la modification la plus récente l'emporte) ou
-  *remplacement*, et **écriture automatique** dans un fichier désigné une fois
-  (navigateurs Chromium).
+  *remplacement*, et **écriture automatique** dans un fichier ou un dossier
+  désigné une fois — celui de OneDrive, Google Drive ou iCloud —, avec une copie
+  datée par jour et dix exemplaires conservés (navigateurs Chromium).
 
 ## Installation en application
 
@@ -93,7 +94,7 @@ Deux compléments depuis la version 2.5.0 :
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 194 tests unitaires et d'intégration
+npm test               # 200 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA

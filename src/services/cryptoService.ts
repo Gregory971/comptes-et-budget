@@ -1,6 +1,7 @@
 // Chiffrement du fichier de sauvegarde.
 //
-// La sauvegarde .cbjson est destinée à un dossier Google Drive : elle quitte
+// La sauvegarde .cbjson est destinée à un dossier synchronisé — OneDrive,
+// Google Drive, iCloud : elle quitte
 // donc l'appareil, contrairement à la base elle-même. En clair, elle expose
 // l'intégralité des comptes à qui accède au dossier synchronisé — la promesse
 // de confidentialité de l'application s'arrêtait à l'export.

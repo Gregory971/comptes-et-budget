@@ -76,7 +76,7 @@ async function tablesFor(dbId: string): Promise<Pick<Backup, TableName>> {
 }
 
 export const backupService = {
-  /** Sérialise toute la base active (fichier .cbjson destiné à Google Drive). */
+  /** Sérialise toute la base active (fichier .cbjson destiné à un dossier synchronisé). */
   async export(): Promise<Backup> {
     const database = await dbService.getActive();
     if (!database) throw new Error('Aucune base active');
@@ -156,7 +156,7 @@ export const backupService = {
    *  · 'replace' : l'état du fichier fait foi (comportement historique) ;
    *  · 'merge'   : fusion enregistrement par enregistrement, la modification la
    *                plus récente (updatedAt) l'emporte — évite qu'une synchro
-   *                Google Drive n'écrase les saisies de l'autre appareil.
+   *                la synchronisation n'écrase les saisies de l'autre appareil.
    * Dans les deux cas, l'état courant est exporté au préalable.
    */
   async restore(backup: Backup, mode: 'replace' | 'merge' = 'replace', safetyCopy = true): Promise<void> {

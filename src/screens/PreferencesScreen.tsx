@@ -6,8 +6,8 @@ import { ExportButton } from '../components/ExportButton';
 import { IconPicker } from '../components/IconPicker';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import {
-  chooseFile, forgetFile, run as runAutoBackup, status as autoBackupStatus,
-  daysSince, type AutoBackupStatus,
+  chooseFile, chooseFolder, forgetFile, run as runAutoBackup,
+  status as autoBackupStatus, daysSince, KEEP_COPIES, type AutoBackupStatus,
 } from '../services/autoBackupService';
 import { dbService } from '../services/dbService';
 import { readTheme, writeTheme, THEME_LABEL, type ThemeMode } from '../services/themeService';
@@ -388,10 +388,12 @@ function GeneralTab({ database }: { database: Database }) {
 
       <hr className="sep" />
 
-      <strong>Sauvegarde &amp; synchronisation Google Drive</strong>
+      <strong>Sauvegarde &amp; synchronisation (OneDrive, Google Drive…)</strong>
       <ol className="muted" style={{ fontSize: 13, paddingLeft: 20 }}>
         <li><strong>Exporter</strong> : génère un fichier <code>.cbjson</code> contenant toute la base.</li>
-        <li>Enregistrez-le dans votre dossier « Google Drive pour ordinateur » — la synchronisation est automatique.</li>
+        <li>Enregistrez-le dans le dossier synchronisé de votre service — « OneDrive » sous
+          Windows, « Google Drive pour ordinateur », iCloud Drive sur Mac. La synchronisation
+          est alors assurée par ce service, l’application n’émettant aucune requête.</li>
         <li>Sur l’autre appareil : <strong>Importer</strong>, puis choisissez <em>Fusionner</em> pour
           conserver les saisies faites des deux côtés.</li>
       </ol>
@@ -402,14 +404,28 @@ function GeneralTab({ database }: { database: Database }) {
 
       <hr className="sep" />
 
-      <strong>Sauvegarde automatique</strong>
+      <strong>Sauvegarde automatique — OneDrive, Google Drive, iCloud…</strong>
       <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-        Désignez un fichier une seule fois — par exemple dans « Google Drive pour
-        ordinateur » — et l’application y réécrit la sauvegarde à chaque ouverture
-        et à chaque fermeture de l’onglet, sans nouvelle question.
-        {' '}<strong>Ce fichier est écrit en clair</strong> : chiffrer supposerait de
+        Désignez une destination une seule fois, dans le dossier synchronisé de
+        votre service — <code>C:\Users\…\OneDrive\</code> sous Windows,{' '}
+        <code>~/OneDrive/</code> sur Mac — et l’application y écrit la sauvegarde à
+        chaque ouverture et à chaque passage de l’onglet en arrière-plan, sans
+        nouvelle question. C’est le client de synchronisation, déjà installé sur
+        votre machine, qui l’envoie ensuite dans le nuage : l’application, elle,
+        n’émet aucune requête réseau.
+      </p>
+      <ul className="muted" style={{ fontSize: 13, paddingLeft: 20, marginTop: 4 }}>
+        <li><strong>Un dossier</strong> (recommandé) : une copie datée par jour, les
+          {' '}{KEEP_COPIES} plus récentes conservées. Une base vidée par erreur
+          n’écrase pas la dernière copie valide.</li>
+        <li><strong>Un fichier</strong> : une seule copie, réécrite à chaque fois.
+          L’historique dépend alors du versionnage de votre service.</li>
+      </ul>
+      <p className="muted" style={{ fontSize: 13 }}>
+        <strong>Ces fichiers sont écrits en clair</strong> : chiffrer supposerait de
         retenir la phrase secrète d’une session à l’autre, donc de l’écrire quelque
-        part. Pour un dossier partagé, préférez l’export manuel chiffré ci-dessus.
+        part. Si le dossier est partagé avec d’autres personnes, préférez l’export
+        manuel chiffré ci-dessus.
       </p>
       {auto && !auto.supported ? (
         <p className="muted" style={{ fontSize: 13 }}>
@@ -424,12 +440,18 @@ function GeneralTab({ database }: { database: Database }) {
         <>
           <table className="simple" style={{ maxWidth: 520 }}>
             <tbody>
-              <tr><td className="muted">Fichier</td>
-                <td>{auto.configured ? <strong>{auto.fileName}</strong> : 'aucun'}</td></tr>
+              <tr><td className="muted">Destination</td>
+                <td>{auto.configured
+                  ? <><strong>{auto.targetName}</strong>
+                    <span className="muted"> ({auto.kind === 'dossier' ? 'dossier' : 'fichier'})</span></>
+                  : 'aucune'}</td></tr>
               {auto.configured && (
                 <tr><td className="muted">Dernière écriture</td>
                   <td>{auto.lastRunAt
-                    ? `${new Date(auto.lastRunAt).toLocaleString('fr-FR')} (il y a ${daysSince(auto.lastRunAt)} j)`
+                    ? <>{new Date(auto.lastRunAt).toLocaleString('fr-FR')} (il y a {daysSince(auto.lastRunAt)} j)
+                      {auto.lastFileName && auto.kind === 'dossier' && (
+                        <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+                          {auto.lastFileName}</span>)}</>
                     : 'jamais'}</td></tr>
               )}
               {auto.lastError && (
@@ -439,16 +461,29 @@ function GeneralTab({ database }: { database: Database }) {
             </tbody>
           </table>
           <div className="inline" style={{ marginTop: 10 }}>
-            <button className="btn" disabled={autoBusy} onClick={async () => {
+            {auto.folderSupported && (
+              <button className="btn" disabled={autoBusy} onClick={async () => {
+                setAutoBusy(true);
+                try {
+                  setAuto(await chooseFolder(database.name));
+                  setMsg('Sauvegarde automatique activée dans le dossier choisi.');
+                } catch (e) {
+                  setMsg((e as Error).message);
+                } finally { setAutoBusy(false); }
+              }}>
+                📁 {auto.kind === 'dossier' ? 'Changer de dossier' : 'Choisir un dossier'}
+              </button>
+            )}
+            <button className="btn ghost" disabled={autoBusy} onClick={async () => {
               setAutoBusy(true);
               try {
-                setAuto(await chooseFile(`${database.name.replace(/[^\w-]+/g, '_')}.cbjson`));
-                setMsg('Sauvegarde automatique activée.');
+                setAuto(await chooseFile(database.name));
+                setMsg('Sauvegarde automatique activée sur ce fichier.');
               } catch (e) {
                 setMsg((e as Error).message);
               } finally { setAutoBusy(false); }
             }}>
-              {auto.configured ? 'Changer de fichier' : 'Choisir le fichier'}
+              📄 {auto.kind === 'fichier' ? 'Changer de fichier' : 'Choisir un fichier'}
             </button>
             {auto.configured && (
               <>

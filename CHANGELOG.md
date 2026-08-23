@@ -1,5 +1,47 @@
 # Journal des modifications
 
+## Version 2.5.1 — 23 août 2026
+
+### Sauvegarde automatique vers OneDrive (et tout dossier synchronisé)
+
+La sauvegarde automatique ne visait qu'un **fichier**, et l'interface ne parlait
+que de Google Drive. Elle accepte désormais un **dossier** — celui de OneDrive,
+de Google Drive ou d'iCloud — et y dépose une copie **datée par jour**, en ne
+conservant que les dix plus récentes.
+
+Le gain n'est pas cosmétique : avec un fichier unique, une base vidée par
+erreur, une importation malheureuse ou une corruption étaient recopiées
+par-dessus la seule sauvegarde existante à l'ouverture suivante. Dix copies
+datées laissent le temps de s'en apercevoir.
+
+- **Aucune requête réseau ajoutée.** L'application écrit un fichier local ;
+  c'est le client de synchronisation déjà installé sur la machine qui l'envoie
+  dans le nuage. La politique `connect-src 'none'` reste donc intacte, et la
+  garantie « vos données ne quittent jamais votre appareil » n'est pas entamée :
+  ce qui part vers OneDrive, c'est le fichier que vous y avez délibérément
+  rangé.
+- La purge ne touche qu'aux fichiers portant le nom de la base suivi d'une date
+  (`Mes_comptes_2026-08-23.cbjson`) : les autres fichiers du dossier sont
+  laissés intacts. Un échec de suppression — fichier verrouillé par la
+  synchronisation en cours — n'interrompt pas la sauvegarde.
+- Le navigateur ne communique jamais le chemin complet d'une destination
+  choisie : l'interface affiche le nom retenu sans prétendre reconnaître
+  OneDrive.
+- Les libellés de l'application, du LISEZ-MOI et du README ne citent plus Google
+  Drive comme seul service.
+
+Ces fichiers restent écrits **en clair**, et l'interface le dit : chiffrer la
+sauvegarde automatique supposerait de retenir la phrase secrète d'une session à
+l'autre, donc de l'écrire quelque part. Pour un dossier partagé avec d'autres
+personnes, l'export manuel chiffré (2.5.0) reste la bonne réponse.
+
+### Vérifications
+
+- **200 tests** (contre 194) : dépôt daté, réécriture de la copie du jour,
+  rotation à dix exemplaires, respect des fichiers étrangers au dossier, purge
+  qui échoue sans interrompre la sauvegarde, assainissement du nom de base.
+- Contrôlé sur l'application construite, en thème clair et sombre.
+
 ## Version 2.5.0 — 22 août 2026
 
 Quatre chantiers : les défauts relevés à l'audit, l'import de relevés

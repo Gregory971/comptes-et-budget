@@ -51,8 +51,8 @@ export function ExportButton({ className = 'act', label = 'Exporter' }: {
         <Modal title="Sauvegarde exportée" onClose={() => setDone(null)} width={460}>
           <p role="status">Fichier <strong>{done}</strong> téléchargé.</p>
           <p className="muted" style={{ fontSize: 13 }}>
-            Déposez-le dans votre dossier « Google Drive pour ordinateur » pour le
-            retrouver sur vos autres appareils.
+            Déposez-le dans le dossier synchronisé de votre service — OneDrive,
+            Google Drive, iCloud — pour le retrouver sur vos autres appareils.
           </p>
           <div className="row"><span />
             <button className="btn" onClick={() => setDone(null)}>Fermer</button></div>
@@ -64,7 +64,7 @@ export function ExportButton({ className = 'act', label = 'Exporter' }: {
           <label className="radio-row">
             <input type="checkbox" checked={chiffrer} onChange={e => setChiffrer(e.target.checked)} />
             <span><strong>Chiffrer le fichier</strong> avec une phrase secrète — recommandé si la
-              sauvegarde part dans un dossier synchronisé (Google Drive, OneDrive, iCloud).</span>
+              sauvegarde part dans un dossier synchronisé (OneDrive, Google Drive, iCloud).</span>
           </label>
 
           {chiffrer && (

@@ -61,7 +61,7 @@ export function OnboardingWizard({ database }: { database?: Database }) {
             {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
             <button className="btn" style={{ width: '100%' }} onClick={next} disabled={busy}>Continuer</button>
             <div style={{ marginTop: 10 }}>
-              <ImportButton label="Restaurer une sauvegarde (Google Drive)" />
+              <ImportButton label="Restaurer une sauvegarde" />
             </div>
           </>
         ) : (
