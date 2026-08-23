@@ -1,5 +1,84 @@
 # Journal des modifications
 
+## Version 2.6.0 — 23 août 2026
+
+### Sauvegarde vers OneDrive par l'API Microsoft Graph
+
+La 2.5.1 écrivait dans un dossier synchronisé, ce qui suppose le client OneDrive
+installé sur la machine. L'application peut désormais **déposer sa sauvegarde
+directement dans OneDrive**, depuis n'importe quel appareil — un téléphone, un
+ordinateur d'emprunt — sans autre logiciel que le navigateur.
+
+**La fonction est éteinte par défaut** : c'est la seule de l'application qui
+fasse sortir des données de l'appareil, et elle ne s'active que délibérément,
+dans Préférences → Général.
+
+#### Une passerelle isolée, pour ne pas défaire la garantie de confidentialité
+
+Une politique de sécurité posée en balise `<meta>` ne peut pas être élargie à
+l'exécution : « autoriser OneDrive dans les réglages » n'aurait donc pas suffi à
+laisser passer les appels à Microsoft. La solution paresseuse — ouvrir
+`connect-src` dans l'application entière — aurait annulé la promesse même du
+projet, pour tout le monde et en permanence, y compris pour qui n'utilise pas
+OneDrive.
+
+L'application garde donc `connect-src 'none'`, vérifié par un test. Les appels
+réseau vivent dans un **document séparé**, `onedrive.html`, servi depuis la même
+origine mais porteur de sa propre politique, qui n'autorise que quatre hôtes :
+`login.microsoftonline.com`, `graph.microsoft.com`, et les deux domaines vers
+lesquels Graph redirige les téléchargements. Un test énumère cette liste : y
+ajouter un service de mesure d'audience ferait échouer la construction.
+
+L'application ne parle donc jamais au réseau : elle transmet des ordres à la
+passerelle par `postMessage`, en vérifiant l'origine des deux côtés, et reçoit
+des réponses. La passerelle, elle, ignore tout des comptes : elle reçoit un
+contenu déjà sérialisé et l'envoie.
+
+#### Ce qui est demandé à Microsoft, et rien de plus
+
+Connexion OAuth 2.0 par **code d'autorisation avec PKCE** — une application
+monopage ne peut garder aucun secret, son code étant public. La portée demandée
+est `Files.ReadWrite.AppFolder` : un dossier créé pour l'application, le reste
+du OneDrive lui restant invisible. `offline_access` évite d'avoir à se
+reconnecter à chaque envoi. La fenêtre de connexion s'ouvre à part, Microsoft
+refusant que sa page de connexion soit encadrée.
+
+#### Un service worker qui interceptait le retour de connexion
+
+Défaut corrigé au passage, et invisible autrement qu'en conditions réelles : le
+repli de navigation (`navigateFallback: index.html`) servait **l'application** à
+l'URL de retour `onedrive.html?code=…`, une URL portant une chaîne de requête ne
+correspondant à aucun fichier précaché. La page chargée n'avait ni le script
+d'échange des jetons, ni le droit de joindre le réseau : la connexion échouait
+**sans le moindre message**. Ni le développement (aucun service worker) ni les
+tests unitaires ne pouvaient le révéler. La liste d'exclusion est désormais
+définie et testée dans `src/utils/pwa.ts`.
+
+### ⚠️ Ce qui n'a pas pu être vérifié
+
+L'écriture effective dans OneDrive **n'a jamais tourné en conditions réelles**.
+Le compte de test se voit refuser par Microsoft *tous* les appels à son espace,
+y compris la simple lecture des métadonnées :
+
+    GET /me/drive → 403 accessDenied, innerError.code = serviceReadOnly
+
+Ce n'est ni le quota (21,7 Go sur 1 To), ni le compte — les revendications du
+jeton confirment le bon locataire grand public —, ni la portée demandée, et
+l'interface web de OneDrive fonctionne normalement. La surface API de ce lecteur
+est verrouillée côté Microsoft. La chaîne validée s'arrête donc à l'obtention
+des jetons ; l'envoi, la liste et la restauration restent à éprouver.
+
+### Vérifications
+
+- **235 tests** (contre 200) : construction de l'URL de connexion, portée
+  limitée au dossier d'application, PKCE sans secret, lecture des réponses de
+  jetons, appariement ordre/réponse de la passerelle, rejet d'un message venu
+  d'une autre origine, abandon d'un ordre resté sans réponse, énumération des
+  hôtes autorisés, exclusion du service worker.
+- Éprouvé sur le site **construit**, servi en HTTP : connexion Microsoft
+  complète, jetons obtenus, compte reconnu, et les deux politiques de sécurité
+  distinctes constatées dans les pages livrées.
+
 ## Version 2.5.1 — 23 août 2026
 
 ### Sauvegarde automatique vers OneDrive (et tout dossier synchronisé)

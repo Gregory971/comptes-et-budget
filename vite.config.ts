@@ -1,8 +1,10 @@
+import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { VitePWA } from 'vite-plugin-pwa';
-import { contentSecurityPolicy } from './src/utils/csp';
+import { contentSecurityPolicy, gatewayContentSecurityPolicy } from './src/utils/csp';
+import { workboxOptions } from './src/utils/pwa';
 
 /**
  * Injecte la CSP (définie et testée dans src/utils/csp.ts) à la construction
@@ -14,11 +16,15 @@ const cspPlugin = (single: boolean): Plugin => ({
   apply: 'build',
   transformIndexHtml: {
     order: 'post',
-    handler: () => [{
+    // Chaque page reçoit SA politique : l'application garde connect-src 'none',
+    // la passerelle OneDrive est la seule à pouvoir joindre Microsoft.
+    handler: (_html, ctx) => [{
       tag: 'meta',
       attrs: {
         'http-equiv': 'Content-Security-Policy',
-        content: contentSecurityPolicy(single),
+        content: ctx.path.endsWith('onedrive.html')
+          ? gatewayContentSecurityPolicy()
+          : contentSecurityPolicy(single),
       },
       injectTo: 'head-prepend',
     }],
@@ -68,10 +74,10 @@ export default defineConfig(({ mode }) => {
             { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-          navigateFallback: `${base}index.html`,
-        },
+        // Défini et testé dans src/utils/pwa.ts : la passerelle OneDrive doit
+        // échapper au repli de navigation, sans quoi le retour de connexion
+        // Microsoft se voit servir l'application à sa place.
+        workbox: workboxOptions(base),
       })]),
     ],
     build: {
@@ -83,6 +89,13 @@ export default defineConfig(({ mode }) => {
       assetsInlineLimit: single ? 64 * 1024 : 4096,
       ...(single ? {} : {
         rollupOptions: {
+          // Deux pages : l'application et la passerelle OneDrive. Le fichier
+          // autonome n'en porte qu'une — ouvert en file://, il ne peut de toute
+          // façon pas servir d'URI de redirection OAuth.
+          input: {
+            main: resolve(__dirname, 'index.html'),
+            onedrive: resolve(__dirname, 'onedrive.html'),
+          },
           output: {
             // Le noyau React change rarement : le séparer améliore la mise en
             // cache entre deux versions de l'application.

@@ -41,3 +41,40 @@ export function contentSecurityPolicy(single: boolean): string {
     "form-action 'none'",
   ].join('; ');
 }
+
+/**
+ * Politique de la PASSERELLE OneDrive (`onedrive.html`).
+ *
+ * Le document principal garde `connect-src 'none'` : la garantie « rien ne sort
+ * de l'appareil » lui reste opposable, quoi qu'il arrive à cette page-ci. Une
+ * politique déclarée par balise <meta> ne pouvant être élargie à l'exécution,
+ * la seule façon d'offrir OneDrive sans affaiblir l'application était de placer
+ * les appels réseau dans un DOCUMENT séparé, avec sa propre politique.
+ *
+ * Trois hôtes, et rien d'autre :
+ *  · login.microsoftonline.com — connexion et jetons ;
+ *  · graph.microsoft.com       — dossier d'application (Files.ReadWrite.AppFolder) ;
+ *  · *.files.1drv.com et *.sharepoint.com — Graph répond aux téléchargements
+ *    par une redirection vers ces hôtes ; sans eux, la restauration échouerait.
+ */
+export function gatewayContentSecurityPolicy(): string {
+  return [
+    "default-src 'self'",
+    [
+      'connect-src',
+      'https://login.microsoftonline.com',
+      'https://graph.microsoft.com',
+      'https://*.files.1drv.com',
+      'https://*.sharepoint.com',
+    ].join(' '),
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    // La page de connexion Microsoft s'ouvre par navigation de cette fenêtre,
+    // jamais dans un cadre : rien ne doit pouvoir être encadré ici.
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
+}

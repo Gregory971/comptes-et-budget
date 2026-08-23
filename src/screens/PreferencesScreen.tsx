@@ -3,6 +3,7 @@ import { useReferentials } from '../hooks/useData';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
 import { ExportButton } from '../components/ExportButton';
+import { OneDrivePanel } from '../components/OneDrivePanel';
 import { IconPicker } from '../components/IconPicker';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import {
@@ -355,6 +356,11 @@ function GeneralTab({ database }: { database: Database }) {
           {asking ? 'Demande en cours…' : 'Demander le stockage persistant'}
         </button>
       )}
+
+      <hr className="sep" />
+
+      <strong>Sauvegarde vers OneDrive (compte Microsoft)</strong>
+      <OneDrivePanel database={database} />
 
       <hr className="sep" />
 

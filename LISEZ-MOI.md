@@ -100,6 +100,18 @@ Ces fichiers sont écrits en clair — les chiffrer supposerait de conserver la
 phrase secrète d'une session à l'autre. Pour un dossier partagé, l'export manuel
 chiffré reste la bonne réponse.
 
+**Sauvegarde vers OneDrive** (Préférences → Général), **éteinte par défaut** :
+dépose la sauvegarde directement dans votre OneDrive par l'API Microsoft Graph,
+sans que le client OneDrive soit installé — utile depuis un téléphone. C'est la
+seule fonction qui fasse sortir des données de l'appareil, aussi les appels
+réseau sont-ils confinés dans un document séparé, `onedrive.html`, avec sa
+propre politique de sécurité : l'application, elle, conserve `connect-src
+'none'`. L'autorisation demandée à Microsoft
+(`Files.ReadWrite.AppFolder`) ne donne accès qu'à un dossier créé pour
+l'application. ⚠️ L'envoi et la restauration restent à éprouver en conditions
+réelles : le compte de test est refusé par Microsoft (voir le journal des
+modifications, 2.6.0).
+
 **Stockage de la base** : l'application demande au navigateur le classement
 « persistant », qui met la base à l'abri de la suppression automatique
 (récupération d'espace disque, ou sept jours sans ouverture sous Safari).
@@ -125,6 +137,7 @@ et le solde d'ouverture des projets ; la v7, les réglages propres à l'appareil
 
     src/utils/       dates civiles, montants en centimes, lecture des relevés
     src/types/       modèle de données (13 entités)
+    src/onedrive/    passerelle OneDrive : protocole, PKCE, appels Graph
     src/services/    Dexie (IndexedDB) et métier — comptes, opérations,
                      virements, échéances, budgets, bilans, prévisionnel long
                      terme, rapprochement, import de relevés, sauvegarde
@@ -138,7 +151,7 @@ et le solde d'ouverture des projets ; la v7, les réglages propres à l'appareil
 
     npm install
     npm run dev            # serveur local
-    npm test               # 200 tests unitaires et d'intégration
+    npm test               # 235 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

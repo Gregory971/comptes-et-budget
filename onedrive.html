@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Passerelle OneDrive — Comptes &amp; Budget</title>
+    <style>
+      body{margin:0;font-family:system-ui,'Segoe UI',sans-serif;background:#f4f7fa;color:#22262c;
+        display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+      .boite{background:#fff;border:1px solid #dfe5ec;border-radius:14px;padding:26px 28px;max-width:420px}
+      h1{font-size:17px;margin:0 0 8px}
+      p{font-size:14px;line-height:1.5;margin:0 0 6px}
+      .gris{color:#5f6a76;font-size:12px}
+    </style>
+  </head>
+  <body>
+    <div class="boite">
+      <h1>Comptes &amp; Budget — OneDrive</h1>
+      <p id="etat">Chargement…</p>
+      <p class="gris">Cette page est la seule de l’application autorisée à joindre Microsoft.
+        Elle n’a accès qu’au dossier créé pour l’application dans votre OneDrive.</p>
+    </div>
+    <script type="module" src="/src/onedrive/gateway.ts"></script>
+  </body>
+</html>

@@ -34,6 +34,10 @@ traceur. Montants en euros.
 - **Trésorerie prévisionnelle** sur 3 à 24 mois, avec la date du premier
   passage sous zéro et le point bas de chaque mois.
 - **Thème** clair, sombre ou réglé par le système.
+- **Sauvegarde vers OneDrive** (Microsoft Graph), éteinte par défaut : les
+  appels réseau vivent dans un document séparé, `onedrive.html`, avec sa propre
+  politique de sécurité — l'application conserve `connect-src 'none'`. Portée
+  limitée au dossier d'application.
 - **Sauvegarde** exportable — en clair ou **chiffrée** par phrase secrète —,
   réimportable en mode *fusion* (la modification la plus récente l'emporte) ou
   *remplacement*, et **écriture automatique** dans un fichier ou un dossier
@@ -80,6 +84,14 @@ Deux compléments depuis la version 2.5.0 :
   PBKDF2-SHA256, 600 000 itérations) : le fichier déposé dans un dossier
   synchronisé n'est plus lisible sans la phrase secrète.
 
+La sauvegarde OneDrive (2.6.0) ne déroge pas à la règle : une politique en
+balise `<meta>` ne pouvant être élargie à l'exécution, les appels à Microsoft
+sont confinés dans `onedrive.html`, document distinct dont la politique
+n'autorise que quatre hôtes. `src/utils/csp.test.ts` en énumère la liste, et
+vérifie que la page de l'application garde `connect-src 'none'` dans les deux
+modes de construction. ⚠️ L'écriture effective dans OneDrive n'a pas encore pu
+être éprouvée en conditions réelles — voir le journal des modifications.
+
 ## Conventions techniques
 
 - **Dates civiles** `AAAA-MM-JJ` (`src/utils/date.ts`), jamais d'horodatage ISO
@@ -94,7 +106,7 @@ Deux compléments depuis la version 2.5.0 :
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 200 tests unitaires et d'intégration
+npm test               # 235 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA
