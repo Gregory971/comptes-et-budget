@@ -5,7 +5,7 @@ import { toCents } from '../utils/money';
 import { normalizeYmd, today, toYmd } from '../utils/date';
 import type {
   Database, Account, Payee, CategoryGroup, Category, PaymentMethod,
-  Operation, Preferences, Schedule, Budget, Asset, Project,
+  Operation, Preferences, Schedule, Budget, Asset, Project, CategorizationRule,
 } from '../types';
 
 export const BACKUP_VERSION = 3;
@@ -27,6 +27,12 @@ export interface Backup {
   budgets: Budget[];
   assets: Asset[];
   projects: Project[];
+  /**
+   * Règles de catégorisation apprises à l'import (ajoutées après la v3 du
+   * format, sans changer BACKUP_VERSION : une application plus ancienne ignore
+   * simplement ce champ). Absent d'un fichier antérieur — voir OPTIONAL_TABLES.
+   */
+  categorizationRules?: CategorizationRule[];
 }
 
 type TableName = Exclude<keyof Backup, 'format' | 'version' | 'schemaVersion' | 'exportedAt' | 'database'>;
@@ -48,9 +54,19 @@ const TABLE_MAP = {
   budgets: () => db.budgets,
   assets: () => db.assets,
   projects: () => db.projects,
+  categorizationRules: () => db.categorizationRules,
 } as const satisfies Record<TableName, () => { name: string }>;
 
 const TABLES = Object.keys(TABLE_MAP) as TableName[];
+
+/**
+ * Tables que les sauvegardes plus anciennes ne contiennent pas. Quand le fichier
+ * n'en parle pas du tout, une restauration « remplacer » les laisse intactes au
+ * lieu de les vider : l'absence d'un champ inconnu n'est pas une instruction de
+ * suppression (les règles apprises ne doivent pas disparaître parce qu'on
+ * restaure un fichier d'avant leur existence). Un tableau vide, lui, vide bien.
+ */
+const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>(['categorizationRules']);
 
 type AnyRow = { id: string; dbId: string; updatedAt?: string };
 const tableOf = (name: TableName) =>
@@ -170,7 +186,10 @@ export const backupService = {
 
     await db.transaction('rw', tables, async () => {
       if (mode === 'replace') {
-        for (const name of TABLES) await tableOf(name).where('dbId').equals(dbId).delete();
+        for (const name of TABLES) {
+          if (OPTIONAL_TABLES.has(name) && backup[name] === undefined) continue;
+          await tableOf(name).where('dbId').equals(dbId).delete();
+        }
         await db.databases.put(backup.database);
         for (const name of TABLES) {
           const rows = (backup[name] ?? []) as unknown as AnyRow[];
@@ -335,5 +354,7 @@ export function upgradeBackup(b: Backup): Backup {
     payees: (b.payees ?? []).map(p => row({ ...p, archived: p.archived ?? false })),
     paymentMethods: (b.paymentMethods ?? []).map(m => row({ ...m, archived: m.archived ?? false })),
     preferences: (b.preferences ?? []).map(p => row({ ...p })),
+    // Optionnel : laissé absent plutôt que forcé à [] (voir OPTIONAL_TABLES).
+    ...(b.categorizationRules ? { categorizationRules: b.categorizationRules.map(r => row({ ...r })) } : {}),
   };
 }

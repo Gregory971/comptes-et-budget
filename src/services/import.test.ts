@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { db } from './db';
 import { accountService } from './accountService';
 import { operationService } from './operationService';
-import { payeeService } from './referentialService';
+import { payeeService, categoryService } from './referentialService';
 import { prepareImport, commitImport, matchPayee } from './importService';
 import { toCents } from '../utils/money';
 import type { StatementEntry } from '../utils/statement';
@@ -12,7 +12,10 @@ const DB = 'test-import';
 let accountId = '';
 
 async function reset() {
-  await Promise.all([db.operations.clear(), db.accounts.clear(), db.payees.clear()]);
+  await Promise.all([
+    db.operations.clear(), db.accounts.clear(), db.payees.clear(),
+    db.categories.clear(), db.categoryGroups.clear(), db.categorizationRules.clear(),
+  ]);
   const acc = await accountService.create({
     dbId: DB, name: 'Courant', type: 'courant',
     initialBalanceCents: toCents(1000), startDate: '2026-01-01',
@@ -98,11 +101,16 @@ describe('import d’un relevé : classement automatique', () => {
   beforeEach(reset);
 
   it('reconnaît un tiers connu dans le libellé de la banque', async () => {
+    // La catégorie par défaut du tiers doit exister : une référence orpheline
+    // (catégorie supprimée) ne serait pas posée.
+    const groupe = await categoryService.createGroup(DB, 'Alimentation', 'depense');
+    const courses = await categoryService.createCategory(DB, groupe.id, 'Courses');
     const payee = await payeeService.create(DB, 'Carrefour');
-    await payeeService.update(payee.id, { defaultCategoryId: 'cat-courses' });
+    await payeeService.update(payee.id, { defaultCategoryId: courses.id });
     const [c] = await prepareImport(DB, accountId, [ligne('2026-08-05', 'PAIEMENT CB CARREFOUR 0805', -42.5)]);
     expect(c.payeeId).toBe(payee.id);
-    expect(c.categoryId).toBe('cat-courses');
+    expect(c.categoryId).toBe(courses.id);
+    expect(c.proposal).toMatchObject({ source: 'tiers', confidence: 'haute' });
   });
 
   it('laisse la ligne sans catégorie plutôt que d’en inventer une', async () => {

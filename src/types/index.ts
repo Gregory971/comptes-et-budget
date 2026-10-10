@@ -159,3 +159,27 @@ export interface Setting {
   value: unknown;
   updatedAt: string;
 }
+
+/**
+ * Règle de catégorisation apprise à l'import d'un relevé : un motif stable tiré
+ * du libellé bancaire (« carrefour market ») renvoie à un tiers et/ou à une
+ * catégorie. Créée ou ajustée quand l'utilisateur corrige une proposition à la
+ * confirmation d'un import ; fait partie de la sauvegarde, comme les autres
+ * référentiels. Jamais supprimée physiquement : `disabled` permet à la fusion
+ * de sauvegardes de propager l'oubli d'une règle (la plus récente l'emporte).
+ */
+export interface CategorizationRule extends Tracked {
+  id: string; dbId: string;
+  /** Mots significatifs du libellé, en minuscules sans accents (1 ou 2 mots). */
+  pattern: string;
+  /** Sens de la ligne : une même enseigne peut débiter puis rembourser. */
+  kind: 'depense' | 'recette';
+  categoryId?: string;
+  payeeId?: string;
+  /** Nombre de fois où la règle a été posée ou confirmée par l'utilisateur. */
+  hits: number;
+  /** 'correction' : proposition modifiée ; 'ajout' : ligne jusque-là sans proposition. */
+  origin: 'correction' | 'ajout';
+  disabled: boolean;
+  createdAt: string;
+}

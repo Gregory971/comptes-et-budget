@@ -96,3 +96,78 @@ describe('migration v3 → v6', () => {
     upgraded.close();
   });
 });
+
+/**
+ * v8 : ajout de la table des règles de catégorisation. C'est un simple ajout de
+ * table — rien n'est converti — mais une base déjà en service doit s'ouvrir sans
+ * perdre une ligne et sans que la mise à jour ne fabrique de règle.
+ */
+describe('migration v7 → v8 (règles de catégorisation)', () => {
+  const V7 = 'migration-v7';
+
+  it('conserve les données existantes et ajoute une table de règles vide', async () => {
+    const legacy = new Dexie(V7);
+    legacy.version(1).stores({
+      databases: 'id', accounts: 'id, dbId', payees: 'id, dbId',
+      categoryGroups: 'id, dbId', categories: 'id, dbId, groupId',
+      paymentMethods: 'id, dbId',
+      operations: 'id, dbId, accountId, date, categoryId', preferences: 'id, dbId',
+    });
+    legacy.version(2).stores({ schedules: 'id, dbId, accountId, nextDate', budgets: 'id, dbId, categoryId' });
+    legacy.version(3).stores({ assets: 'id, dbId', projects: 'id, dbId' });
+    legacy.version(4).stores({
+      operations: 'id, dbId, accountId, date, categoryId, payeeId, transferId, [dbId+date], [accountId+date]',
+      accounts: 'id, dbId, [dbId+archived]',
+      schedules: 'id, dbId, accountId, nextDate, [dbId+nextDate]',
+      budgets: 'id, dbId, categoryId, [dbId+categoryId]',
+      categories: 'id, dbId, groupId, [dbId+groupId]',
+    });
+    legacy.version(5).stores({
+      operations: 'id, dbId, accountId, date, categoryId, payeeId, transferId, assetId, projectId, [dbId+date], [accountId+date]',
+    });
+    legacy.version(6);
+    legacy.version(7).stores({ settings: 'key' });
+    await legacy.open();
+
+    await legacy.table('databases').add({
+      id: 'b1', name: 'Perso', profile: 'perso', currency: 'EUR',
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+      schemaVersion: 6, holidayRegion: 'guadeloupe',
+    });
+    await legacy.table('operations').bulkAdd([
+      { id: 'o1', dbId: 'b1', accountId: 'a1', date: '2026-08-01', amountCents: -9540, kind: 'depense', checked: false, label: 'CARREFOUR MARKET', categoryId: 'c1', createdAt: '', updatedAt: '' },
+      { id: 'o2', dbId: 'b1', accountId: 'a1', date: '2026-08-31', amountCents: 240000, kind: 'recette', checked: true, createdAt: '', updatedAt: '' },
+    ]);
+    await legacy.table('payees').add({ id: 'p1', dbId: 'b1', name: 'EDF', archived: false, updatedAt: '' });
+    await legacy.table('settings').add({ key: 'theme', value: 'sombre', updatedAt: '' });
+    legacy.close();
+
+    const upgraded = new AppDB(V7);
+    await upgraded.open();
+
+    // Rien de ce qui existait n'est perdu ni modifié.
+    expect(await upgraded.operations.count()).toBe(2);
+    expect((await upgraded.operations.get('o1'))?.amountCents).toBe(-9540);
+    expect((await upgraded.payees.get('p1'))?.name).toBe('EDF');
+    expect((await upgraded.settings.get('theme'))?.value).toBe('sombre');
+    expect((await upgraded.databases.get('b1'))?.holidayRegion).toBe('guadeloupe');
+
+    // La table de règles existe, vide, et ses index sont exploitables.
+    expect(upgraded.tables.map(t => t.name)).toContain('categorizationRules');
+    expect(await upgraded.categorizationRules.count()).toBe(0);
+    await upgraded.categorizationRules.add({
+      id: 'r1', dbId: 'b1', pattern: 'carrefour market', kind: 'depense', categoryId: 'c1',
+      hits: 1, origin: 'ajout', disabled: false, createdAt: '', updatedAt: '',
+    });
+    expect(await upgraded.categorizationRules.where('[dbId+pattern]').equals(['b1', 'carrefour market']).count()).toBe(1);
+    expect(await upgraded.categorizationRules.where('dbId').equals('b1').count()).toBe(1);
+
+    // Ré-ouverture : la base v8 reste stable.
+    upgraded.close();
+    const again = new AppDB(V7);
+    await again.open();
+    expect(await again.categorizationRules.count()).toBe(1);
+    expect(await again.operations.count()).toBe(2);
+    again.close();
+  });
+});
