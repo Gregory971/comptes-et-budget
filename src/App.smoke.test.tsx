@@ -14,6 +14,16 @@ import { formatEur } from './utils/money';
 import { transferService } from './services/transferService';
 import { useStore } from './store/useStore';
 import { toCents } from './utils/money';
+import { today } from './utils/date';
+
+/**
+ * Jour du mois COURANT. Les opérations de test étaient datées en dur du 1er et
+ * du 2 août 2026, puis retrouvées dans « le mois affiché » de l'écran Bilans :
+ * le test ne passait qu'en août, et échouait sans rien signaler d'autre qu'une
+ * somme introuvable dès le mois suivant — bloquant au passage le déploiement,
+ * dont le workflow exécute cette suite avant de publier.
+ */
+const jourDuMois = (jour: number) => `${today().slice(0, 8)}${String(jour).padStart(2, '0')}`;
 
 /**
  * Test de fumée : monte l'application complète sur une base réelle
@@ -32,12 +42,12 @@ describe('application', () => {
       initialBalanceCents: toCents(5000), startDate: '2026-01-01',
     });
     await operationService.create({
-      dbId: base.id, accountId: courant.id, date: '2026-08-01',
+      dbId: base.id, accountId: courant.id, date: jourDuMois(1),
       amountCents: toCents(250.5), kind: 'depense', label: 'Courses du mois',
     });
     await transferService.create({
       dbId: base.id, fromAccountId: courant.id, toAccountId: epargne.id,
-      date: '2026-08-02', amountCents: toCents(100),
+      date: jourDuMois(2), amountCents: toCents(100),
     });
     useStore.setState({ activeDbId: base.id, screen: 'accueil' });
   });

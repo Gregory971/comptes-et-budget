@@ -41,6 +41,10 @@ Ce fichier autonome est désormais **généré à partir du code source** par
   rien n'est écrit avant confirmation.
 - **Rapprochement bancaire** (écran Comptes, bouton « Rapprocher ») : écart
   entre le solde du relevé et le total des opérations pointées.
+- **Accès** : écran de connexion à chaque ouverture (adresse puis mot de passe),
+  code de récupération, verrouillage automatique après inactivité. Verrou **local
+  à l'appareil** : il barre l'accès à l'interface mais ne chiffre pas la base —
+  voir le README. Réglable dans Préférences → Sécurité.
 - **Préférences** : tiers, catégories — avec sélecteur d'icône sur chaque groupe
   et chaque catégorie —, modes de paiement, **thème** (système, clair, sombre),
   **stockage** de la base sur l'appareil, calendrier des jours fériés
@@ -151,7 +155,7 @@ et le solde d'ouverture des projets ; la v7, les réglages propres à l'appareil
 
     npm install
     npm run dev            # serveur local
-    npm test               # 235 tests unitaires et d'intégration
+    npm test               # 292 tests unitaires et d'intégration
     npm run lint           # ESLint
     npm run typecheck      # TypeScript en mode strict
     npm run build          # dist/ — application PWA installable (servie en HTTP)

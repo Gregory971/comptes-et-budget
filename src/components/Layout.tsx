@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useStore, type Screen } from '../store/useStore';
+import { useAuth } from '../store/useAuth';
 import { useActiveDatabase, useBases } from '../hooks/useData';
 import { ImportButton } from './ImportButton';
 import { ExportButton } from './ExportButton';
@@ -46,6 +47,8 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
   const { screen, setScreen } = useStore();
   const { database } = useActiveDatabase();
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const guarded = useAuth(s => s.guarded);
+  const lock = useAuth(s => s.lock);
   const isPro = database?.profile === 'pro';
 
   return (
@@ -74,6 +77,12 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
           {actions ?? <DefaultActions />}
         </div>
         <div className="side-foot">
+          {guarded && (
+            <button type="button" className="lockbtn" onClick={lock}
+              title="Verrouiller l’application : les identifiants seront redemandés">
+              <span aria-hidden="true">🔒</span> Verrouiller
+            </button>
+          )}
           <span className="cur-badge">EUR</span>
           <button className="multi" onClick={() => setShowSwitcher(true)}>
             <span className="avatar" aria-hidden="true">

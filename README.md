@@ -92,6 +92,67 @@ vérifie que la page de l'application garde `connect-src 'none'` dans les deux
 modes de construction. ⚠️ L'écriture effective dans OneDrive n'a pas encore pu
 être éprouvée en conditions réelles — voir le journal des modifications.
 
+## Accès sécurisé (verrou local)
+
+Depuis la version 2.7.0, l'application s'ouvre sur un **écran de connexion** :
+adresse, puis mot de passe, selon le parcours d'une application Softr (deux
+étapes, inscription fermée, message d'erreur unique). Un accès est créé au
+premier lancement, avec un **code de récupération** affiché une seule fois.
+
+**C'est un verrou local, pas une authentification en ligne.** L'application n'a
+ni serveur ni droit de requête réseau : aucun service ne peut dire « cette
+personne est bien connectée », ni envoyer un lien par courriel. L'équivalent
+compatible avec la garantie de confidentialité ci-dessus est un verrou propre à
+l'appareil, et ce qu'il garantit se dit avec précision :
+
+| Il protège contre… | Il ne protège pas contre… |
+|---|---|
+| un ordinateur partagé, un téléphone prêté, une session laissée ouverte | quelqu'un qui dispose du profil du navigateur **et** d'outils de développement : la base IndexedDB n'est pas chiffrée |
+| l'essai répété de mots de passe (ralentissement progressif, 5 s doublées jusqu'à 30 min) | l'exécution de code dans la page (le ralentissement est un frein d'usage, non une barrière) |
+
+Chiffrer la base n'est pas possible sans renoncer aux requêtes de Dexie : les
+champs indexés (dates, comptes) doivent rester lisibles. Contre la lecture du
+disque, la bonne protection est le chiffrement de l'appareil ; contre la fuite
+d'une copie, la **sauvegarde chiffrée** (voir ci-dessus).
+
+Choix d'implémentation (`src/services/authService.ts`) :
+
+- **Aucun secret n'est stocké.** Seulement l'empreinte PBKDF2-SHA256 du mot de
+  passe et du code de récupération (600 000 itérations, sel de 16 octets propre à
+  chacun) — mêmes paramètres que la sauvegarde chiffrée. Les paramètres sont
+  conservés avec l'empreinte : elle est refaite à la connexion si le coût est un
+  jour relevé.
+- **Comparaison à durée constante, et empreinte toujours calculée**, même si
+  l'adresse est fausse : ni le message ni le temps de réponse ne disent laquelle
+  des deux informations était erronée.
+- **Mot de passe normalisé en Unicode NFKC** : « é » composé ou décomposé donne la
+  même empreinte, d'un clavier à l'autre.
+- **Longueur minimale (10 caractères) et refus des mots de passe triviaux**,
+  plutôt que des règles de composition qui poussent à « Motdepasse1! ».
+- **Session en mémoire uniquement** : rien n'est écrit dans `localStorage` ni
+  `sessionStorage`, car un indicateur écrit est un indicateur qu'on peut poser à
+  la main. Recharger la page redemande les identifiants. Verrouillage après 15
+  minutes d'inactivité (5, 15, 30 ou 60), mesuré sur des horodatages : les
+  minuteurs d'un onglet en arrière-plan sont suspendus par les navigateurs.
+- **L'application est démontée, non masquée**, tant que l'accès n'est pas
+  accordé : aucun écran ne s'exécute, aucune requête ne lit la base. Contrepartie :
+  un verrouillage pour inactivité perd une saisie en cours.
+- **Réglage d'appareil.** Les identifiants vivent dans la table `settings`, jamais
+  dans un fichier de sauvegarde : restaurer une sauvegarde sur un autre appareil
+  n'y apporte pas cet accès, et n'écrase pas celui de l'appareil qui restaure.
+- **Sans WebCrypto** (page non servie en contexte sécurisé), aucune empreinte
+  n'est calculable : l'accès n'est alors pas imposé, plutôt que de rendre
+  l'application inutilisable. Un accès déjà créé n'est jamais contourné pour
+  autant.
+- **Mot de passe et code perdus : il n'existe aucun contournement**, ce qui serait
+  vider le verrou de son sens. Reste l'effacement des données de l'appareil — dit
+  pour ce qu'il est, et soumis à la saisie de « EFFACER » — puis la restauration
+  d'une sauvegarde exportée.
+
+Tout est modifiable dans Préférences → Sécurité (mot de passe, adresse, délai,
+nouveau code de récupération, désactivation), chaque action sensible redemandant
+le mot de passe.
+
 ## Conventions techniques
 
 - **Dates civiles** `AAAA-MM-JJ` (`src/utils/date.ts`), jamais d'horodatage ISO
@@ -106,7 +167,7 @@ modes de construction. ⚠️ L'écriture effective dans OneDrive n'a pas encore
 ```bash
 npm install
 npm run dev            # serveur local
-npm test               # 235 tests unitaires et d'intégration
+npm test               # 292 tests unitaires et d'intégration
 npm run lint           # ESLint
 npm run typecheck      # TypeScript strict
 npm run build          # dist/ — application PWA

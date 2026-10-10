@@ -5,6 +5,7 @@ import { ImportButton } from '../components/ImportButton';
 import { ExportButton } from '../components/ExportButton';
 import { OneDrivePanel } from '../components/OneDrivePanel';
 import { IconPicker } from '../components/IconPicker';
+import { SecurityTab } from './SecurityTab';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import {
   chooseFile, chooseFolder, forgetFile, run as runAutoBackup,
@@ -19,11 +20,11 @@ import { REGION_LABEL, holidaysOfYear, type Region } from '../utils/holidays';
 import { formatFr } from '../utils/date';
 import type { Category, CategoryGroup, Database } from '../types';
 
-type Tab = 'tiers' | 'categories' | 'modes' | 'general';
+type Tab = 'tiers' | 'categories' | 'modes' | 'general' | 'securite';
 
 const TABS: [Tab, string][] = [
   ['tiers', 'Tiers'], ['categories', 'Catégories'],
-  ['modes', 'Modes de paiement'], ['general', 'Général'],
+  ['modes', 'Modes de paiement'], ['general', 'Général'], ['securite', 'Sécurité'],
 ];
 
 export function PreferencesScreen({ database }: { database: Database }) {
@@ -42,6 +43,7 @@ export function PreferencesScreen({ database }: { database: Database }) {
       {tab === 'categories' && <CategoriesTab database={database} />}
       {tab === 'modes' && <ModesTab database={database} />}
       {tab === 'general' && <GeneralTab database={database} />}
+      {tab === 'securite' && <SecurityTab />}
     </>
   );
 }

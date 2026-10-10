@@ -1,5 +1,112 @@
 # Journal des modifications
 
+## Version 2.7.0 — 10 octobre 2026
+
+### Accès sécurisé par identifiants
+
+L'application s'ouvrait directement sur les comptes : quiconque atteignait
+l'adresse, ou l'écran d'un ordinateur resté allumé, voyait tout. Elle s'ouvre
+désormais sur un **écran de connexion**, construit sur le parcours d'une
+application Softr : une adresse, « Continuer », puis le mot de passe.
+
+**Ce que Softr fait, et que cette application ne peut pas faire.** L'accès d'une
+application Softr repose sur un serveur : il vérifie l'identité, envoie un lien
+magique par courriel, tient la session. Ici, il n'y a ni serveur ni droit de
+requête réseau (`connect-src 'none'`) : en introduire un reviendrait à renoncer à
+la promesse centrale de l'application, que rien ne quitte l'appareil. L'accès est
+donc un **verrou local**, qui reprend le parcours et les principes de Softr sans
+son infrastructure. Il barre l'accès à l'interface ; il **ne chiffre pas la base**
+(les champs indexés doivent rester lisibles pour les requêtes), et l'écran, le
+README et la page Sécurité le disent plutôt que de laisser croire le contraire.
+
+Ce qui est repris de Softr :
+
+- **Deux étapes**, et une adresse inconnue mène quand même à la seconde : l'écran
+  ne révèle pas ce qui est enregistré.
+- **Un message d'erreur unique** : « Adresse ou mot de passe incorrect ».
+  Jamais « adresse inconnue » ni « mot de passe erroné ».
+- **Inscription fermée** : la création d'un accès est refusée tant qu'il en
+  existe un.
+- **Récupération** : ce que Softr fait par courriel, un code de récupération de
+  100 bits le fait ici, affiché une seule fois.
+
+Ce qui est propre à un verrou sans serveur :
+
+- **Aucun secret n'est stocké** — ni mot de passe ni code, seulement leur
+  empreinte PBKDF2-SHA256 (600 000 itérations, sel propre à chaque secret), aux
+  paramètres de la sauvegarde chiffrée. Comparaison à durée constante, empreinte
+  toujours calculée même si l'adresse est fausse : ni le message ni le temps de
+  réponse ne disent laquelle des deux informations était erronée.
+- **Mot de passe normalisé en Unicode NFKC** : un « é » composé ou décomposé
+  donne la même empreinte d'un clavier à l'autre.
+- **Longueur minimale de 10 caractères et refus des mots de passe triviaux**,
+  non des règles de composition, qui poussent à choisir « Motdepasse1! ».
+- **Ralentissement progressif** : deux fautes de frappe gratuites, puis 5 s
+  doublées jusqu'à 30 minutes. Le compteur est écrit, recharger la page ne le
+  remet pas à zéro, et le même compteur sert au mot de passe et au code de
+  récupération — sans quoi un attaquant disposerait de deux budgets d'essais. C'est
+  un frein d'usage : quiconque exécute du code dans la page peut le contourner.
+- **Session en mémoire uniquement** : rien dans `localStorage` ni
+  `sessionStorage`, un indicateur écrit étant un indicateur qu'on peut poser à la
+  main. Recharger redemande les identifiants. Verrouillage après 15 minutes
+  d'inactivité (5, 15, 30 ou 60), mesuré sur des horodatages : les navigateurs
+  suspendent les minuteurs d'un onglet en arrière-plan, et un `setTimeout` de
+  quinze minutes poserait alors un verrou qui n'arrive jamais.
+- **L'application est démontée, non masquée**, tant que l'accès n'est pas
+  accordé : aucun écran ne s'exécute, aucune requête ne lit la base, rien de
+  sensible n'existe dans la page. Contrepartie : un verrouillage pour inactivité
+  perd une saisie en cours.
+- **Réglage d'appareil.** Les identifiants vivent dans la table `settings`, qu'aucun
+  fichier de sauvegarde ne contient : restaurer une sauvegarde sur un autre
+  appareil n'y apporte pas cet accès.
+- **Mot de passe et code perdus : aucun contournement**, qui viderait le verrou
+  de son sens. Reste l'effacement des données de l'appareil — soumis à la saisie
+  de « EFFACER » et précédé de l'avertissement qu'il est définitif — puis la
+  restauration d'une sauvegarde exportée.
+
+Gestion dans **Préférences → Sécurité** : changer le mot de passe ou l'adresse,
+délai d'inactivité, nouveau code de récupération, désactivation de la protection.
+Chaque action qui engage l'accès redemande le mot de passe, même session ouverte :
+sans cela, quelqu'un passant devant l'écran pourrait le changer et enfermer dehors
+son propriétaire. Un bouton « 🔒 Verrouiller » figure dans la barre latérale.
+
+**À la première ouverture après cette mise à jour**, la création d'un accès est
+imposée avant toute chose, y compris aux bases existantes. Les données ne sont
+pas touchées.
+
+**Sans WebCrypto** — page non servie en contexte sécurisé —, aucune empreinte n'est
+calculable. L'accès n'est alors pas imposé, plutôt que de rendre l'application
+inutilisable dès le premier lancement. Un accès déjà créé n'est jamais contourné
+pour autant.
+
+### Correction : un test qui ne passait qu'en août
+
+`App.smoke.test.tsx` datait ses opérations du 1er et du 2 août 2026 en dur, puis
+les cherchait dans « le mois affiché » de l'écran Bilans : il échouait dès le mois
+suivant. Le workflow de déploiement exécute cette suite avant de publier — la
+mise en ligne de n'importe quelle nouveauté était donc bloquée. Les dates sont
+désormais celles du mois courant.
+
+### Vérifications
+
+- 57 tests ajoutés (292 au total) : 35 sur le service (aucun secret stocké,
+  adresse fausse indiscernable d'un mot de passe faux, normalisation Unicode,
+  ralentissement et sa persistance, compteur partagé avec le code de
+  récupération, code à usage unique, effacement) et 22 sur l'interface (création,
+  accusé de réception du code, connexion, blocage, verrouillage pour inactivité y
+  compris au retour d'un onglet en arrière-plan, navigateur sans WebCrypto).
+- Trois régressions de sécurité introduites volontairement — adresse non
+  vérifiée, normalisation retirée, ralentissement non enregistré — ont chacune
+  fait échouer les tests concernés.
+- Contrôlé dans un navigateur sur l'application construite : création en 313 ms au
+  coût réel de 600 000 itérations ; stockage ne contenant que des empreintes et
+  aucun indicateur de session ; message identique pour une adresse inconnue et un
+  mauvais mot de passe ; blocage au troisième échec ; verrouillage manuel qui
+  retire l'application de la page ; affichage correct sur téléphone.
+- ⚠️ **Non éprouvé** : l'ouverture du fichier autonome en `file://` (le navigateur
+  de vérification ne permet pas d'ouvrir un fichier local). Son comportement de
+  repli sans WebCrypto est en revanche testé.
+
 ## Version 2.6.0 — 23 août 2026
 
 ### Sauvegarde vers OneDrive par l'API Microsoft Graph

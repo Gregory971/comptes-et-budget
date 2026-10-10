@@ -35,14 +35,14 @@ export interface EncryptedEnvelope {
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-const toB64 = (b: ArrayBuffer | Uint8Array): string => {
+export const toB64 = (b: ArrayBuffer | Uint8Array): string => {
   const bytes = b instanceof Uint8Array ? b : new Uint8Array(b);
   let s = '';
   for (const octet of bytes) s += String.fromCharCode(octet);
   return btoa(s);
 };
 
-const fromB64 = (s: string): Uint8Array<ArrayBuffer> => {
+export const fromB64 = (s: string): Uint8Array<ArrayBuffer> => {
   const bin = atob(s);
   const out = new Uint8Array(new ArrayBuffer(bin.length));
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
