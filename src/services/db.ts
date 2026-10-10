@@ -2,6 +2,7 @@ import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   Database, Account, Payee, CategoryGroup, Category,
   PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project, Setting,
+  CategorizationRule,
 } from '../types';
 import { normalizeYmd, today } from '../utils/date';
 import { toCents } from '../utils/money';
@@ -22,6 +23,8 @@ export class AppDB extends Dexie {
   budgets!: Table<Budget, string>;
   assets!: Table<Asset, string>;
   projects!: Table<Project, string>;
+  /** Règles de catégorisation apprises à l'import de relevés (incluses dans la sauvegarde). */
+  categorizationRules!: Table<CategorizationRule, string>;
   /** Réglages propres à l'appareil : jamais exportés dans la sauvegarde. */
   settings!: Table<Setting, string>;
 
@@ -70,6 +73,10 @@ export class AppDB extends Dexie {
     // sauvegarde : ces valeurs n'ont de sens que sur la machine courante, et
     // un handle de fichier n'est pas transportable.
     this.version(7).stores({ settings: 'key' });
+    // v8 : règles de catégorisation apprises à l'import. Simple ajout de table :
+    // aucune donnée existante n'est convertie, les bases déjà en place gardent
+    // tout leur contenu et démarrent avec zéro règle.
+    this.version(8).stores({ categorizationRules: 'id, dbId, [dbId+pattern]' });
   }
 }
 

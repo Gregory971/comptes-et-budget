@@ -6,17 +6,27 @@
 //    précédent ne doit pas revenir en double. Chaque opération existante ne
 //    peut absorber qu'une seule ligne du relevé, faute de quoi deux cafés du
 //    même jour au même prix n'en feraient plus qu'un.
-//  · CLASSEMENT — le libellé de la banque est confronté aux tiers déjà connus,
-//    ce qui rattache l'opération au tiers et à sa catégorie par défaut. Rien
-//    n'est deviné au-delà : une ligne non reconnue reste sans catégorie plutôt
-//    que d'en recevoir une fausse.
+//  · CLASSEMENT — le libellé de la banque est confronté aux règles apprises, aux
+//    tiers déjà connus et à l'historique des opérations (voir utils/categorize).
+//    Chaque proposition porte son origine et un niveau de confiance ; une
+//    proposition peu sûre est seulement suggérée, jamais posée, et une ligne non
+//    reconnue reste sans catégorie plutôt que d'en recevoir une fausse.
+//    Rien n'est écrit avant la confirmation ; les corrections de l'utilisateur
+//    alimentent alors les règles apprises.
 
 import { db, uid } from './db';
 import { operationService } from './operationService';
-import { payeeService } from './referentialService';
+import { payeeService, categoryService } from './referentialService';
+import { learnFromImport, type LearnItem } from './categorizationService';
 import { fromYmd, toYmd, type Ymd } from '../utils/date';
 import type { StatementEntry } from '../utils/statement';
-import type { Operation, Payee } from '../types';
+import {
+  buildHistoryIndex, isApplied, matchPayee, normalizeText, propose,
+  type CategorizerContext, type LineKind, type Proposal,
+} from '../utils/categorize';
+import type { Operation } from '../types';
+
+export { matchPayee };
 
 /** Tolérance de date entre le relevé et la saisie manuelle (jours). */
 export const DUPLICATE_WINDOW_DAYS = 4;
@@ -30,29 +40,19 @@ export interface ImportCandidate extends StatementEntry {
   payeeId?: string;
   payeeName?: string;
   categoryId?: string;
+  /** Proposition du moteur (origine, confiance), même quand elle n'est que suggérée. */
+  proposal?: Proposal;
+  /** Tiers et catégorie posés d'office : référence pour savoir ce que l'utilisateur a corrigé. */
+  autoPayeeId?: string;
+  autoCategoryId?: string;
   /** Ligne retenue pour l'import ; un doublon est décoché d'office. */
   selected: boolean;
 }
 
-const norm = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const norm = normalizeText;
 
 const daysBetween = (a: Ymd, b: Ymd) =>
   Math.abs(fromYmd(a).getTime() - fromYmd(b).getTime()) / 86_400_000;
-
-/** Tiers reconnu dans un libellé : le nom le plus long qui y figure. */
-export function matchPayee(label: string, payees: Payee[]): Payee | undefined {
-  const l = norm(label);
-  if (!l) return undefined;
-  let best: Payee | undefined;
-  for (const p of payees) {
-    const n = norm(p.name);
-    if (n.length < 3 || !l.includes(n)) continue;
-    if (!best || n.length > norm(best.name).length) best = p;
-  }
-  return best;
-}
 
 /**
  * Confronte le relevé à la base : doublons repérés, tiers et catégorie
@@ -61,25 +61,47 @@ export function matchPayee(label: string, payees: Payee[]): Payee | undefined {
 export async function prepareImport(
   dbId: string, accountId: string, entries: StatementEntry[],
 ): Promise<ImportCandidate[]> {
-  const [existing, payees] = await Promise.all([
-    db.operations.where('accountId').equals(accountId).toArray(),
+  const [historique, payees, cats, groups, rules] = await Promise.all([
+    db.operations.where('dbId').equals(dbId).toArray(),
     payeeService.list(dbId, true),
+    categoryService.listCategories(dbId),
+    categoryService.listGroups(dbId),
+    db.categorizationRules.where('dbId').equals(dbId).toArray(),
   ]);
-  const vivantes = existing.filter(o => !o.deletedAt);
+  const vivantes = historique.filter(o => o.accountId === accountId && !o.deletedAt);
   const consommees = new Set<string>();
+
+  const groupKind = new Map(groups.map(g => [g.id, g.kind]));
+  const categoryKinds = new Map<string, LineKind>();
+  for (const c of cats) {
+    const k = groupKind.get(c.groupId);
+    if (k) categoryKinds.set(c.id, k);
+  }
+  const ctx: CategorizerContext = {
+    payees, categoryKinds, rules,
+    history: buildHistoryIndex(historique, {
+      payeeNames: new Map(payees.map(p => [p.id, p.name])), categoryKinds,
+    }),
+  };
 
   return entries.map((e, i) => {
     const jumelle = trouveDoublon(e, vivantes, consommees);
     if (jumelle) consommees.add(jumelle.id);
-    const payee = matchPayee(e.label, payees);
+    const proposal = propose(e.label, e.amountCents, ctx);
+    // Seule une proposition assez sûre est posée ; les autres restent des suggestions.
+    const posee = isApplied(proposal) ? proposal : undefined;
+    const payeeId = posee?.payeeId;
     return {
       ...e,
       key: `${i}:${e.date}:${e.amountCents}`,
       duplicateOfId: jumelle?.id,
       duplicateDate: jumelle?.date,
-      payeeId: payee?.id,
-      payeeName: payee?.name,
-      categoryId: payee?.defaultCategoryId,
+      payeeId,
+      payeeName: payeeId ? payees.find(p => p.id === payeeId)?.name : undefined,
+      categoryId: posee?.categoryId,
+      proposal,
+      autoPayeeId: payeeId,
+      autoCategoryId: posee?.categoryId,
       selected: !jumelle,
     };
   });
@@ -107,15 +129,32 @@ export interface ImportResult {
   skipped: number;
   /** Étiquette du lot, inscrite dans la note de chaque opération importée. */
   batchLabel: string;
+  /** Règles créées, ajustées ou confirmées d'après les choix de l'utilisateur. */
+  rulesLearned: number;
 }
 
-/** Écrit les lignes retenues. Le lot est daté pour pouvoir être retrouvé. */
+/**
+ * Écrit les lignes retenues. Le lot est daté pour pouvoir être retrouvé. Les
+ * tiers saisis librement dans la fenêtre de confirmation sont créés ici, et non
+ * avant : tant que l'utilisateur n'a pas confirmé, la base n'est pas touchée.
+ * Les règles apprises sont mises à jour une fois les opérations écrites : un
+ * échec de l'apprentissage ne doit pas faire perdre l'import.
+ */
 export async function commitImport(
   dbId: string, accountId: string, candidates: ImportCandidate[],
 ): Promise<ImportResult> {
   const retenues = candidates.filter(c => c.selected);
   const batchLabel = `Import du ${toYmd(new Date())}`;
   const batchId = uid().slice(0, 8);
+
+  const payeeIds = new Map<string, string | undefined>();
+  for (const c of retenues) {
+    if (c.payeeId || !c.payeeName?.trim()) continue;
+    const cle = norm(c.payeeName);
+    if (!payeeIds.has(cle)) payeeIds.set(cle, await resolvePayeeForImport(dbId, c.payeeName));
+  }
+  const payeeOf = (c: ImportCandidate) =>
+    c.payeeId ?? (c.payeeName?.trim() ? payeeIds.get(norm(c.payeeName)) : undefined);
 
   await db.transaction('rw', db.operations, async () => {
     for (const c of retenues) {
@@ -125,14 +164,31 @@ export async function commitImport(
         kind: c.amountCents < 0 ? 'depense' : 'recette',
         label: c.label || undefined,
         reference: c.reference,
-        payeeId: c.payeeId,
+        payeeId: payeeOf(c),
         categoryId: c.categoryId,
         note: `${batchLabel} (lot ${batchId})`,
       });
     }
   });
 
-  return { imported: retenues.length, skipped: candidates.length - retenues.length, batchLabel };
+  let rulesLearned = 0;
+  try {
+    const items: LearnItem[] = retenues.map(c => ({
+      label: c.label, amountCents: c.amountCents,
+      final: { categoryId: c.categoryId, payeeId: payeeOf(c) },
+      auto: { categoryId: c.autoCategoryId, payeeId: c.autoPayeeId },
+      proposal: c.proposal,
+    }));
+    const r = await learnFromImport(dbId, items);
+    rulesLearned = r.created + r.updated + r.confirmed + r.disabled;
+  } catch (e) {
+    console.warn('Apprentissage des règles impossible :', e);
+  }
+
+  return {
+    imported: retenues.length, skipped: candidates.length - retenues.length,
+    batchLabel, rulesLearned,
+  };
 }
 
 /** Rattache un tiers saisi dans la fenêtre de confirmation, en le créant au besoin. */
