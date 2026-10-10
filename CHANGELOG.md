@@ -1,5 +1,86 @@
 # Journal des modifications
 
+## Version 2.8.0 — 10 octobre 2026
+
+Lot de cinq améliorations, développées en parallèle puis fusionnées.
+
+### Alertes de budget
+
+- Un bandeau du tableau de bord signale les catégories ayant atteint 80 % de leur
+  budget mensuel, puis celles qui le dépassent, avec le reste ou le dépassement
+  en euros et un lien vers l'écran Budget.
+- Pastille d'alerte (nombre, rouge en cas de dépassement) sur l'entrée « Budget »
+  de la barre latérale ; barres de l'écran Budget avec état écrit en toutes
+  lettres (Attention / Dépassé) et valeur lisible par les lecteurs d'écran.
+- Préférences → Général : activation des alertes, seuil d'attention de 70, 80 ou
+  90 %, et masquage d'une alerte pour le mois en cours (elle réapparaît si elle
+  s'aggrave). Réglages propres à l'appareil, dans la table `settings`, sans
+  migration ni appel réseau.
+- Interne : `budgetService.monthlyStatus` expose `rawPercent` (consommation réelle
+  non plafonnée) ; calcul en centimes entiers.
+
+### Import de relevés : classement automatique par règles apprises
+
+- Chaque ligne reçoit un tiers et une catégorie proposés, avec leur origine
+  (règle apprise, tiers reconnu, historique) et un niveau de confiance.
+- Le libellé bancaire est ramené à un motif stable (dates, numéros de carte,
+  références, mois et mots de paiement retirés). Une proposition incertaine ou
+  ambiguë n'est jamais imposée : elle est suggérée (bouton « Appliquer »). Une
+  ligne inconnue reste sans catégorie. Rien n'est écrit avant la confirmation.
+- Vos corrections à la confirmation créent ou ajustent des règles, consultables et
+  oubliables depuis la fenêtre d'import. Le tiers est modifiable ligne par ligne.
+- Changement de comportement : un tiers archivé n'est plus rattaché à l'import, et
+  un nom de tiers collé à d'autres lettres n'est plus posé d'office (seulement
+  suggéré).
+- Données : nouvelle table de règles (schéma local **v8**, ajout sans conversion),
+  incluse dans la sauvegarde et la fusion. Le format de sauvegarde reste en
+  version 3 ; une sauvegarde antérieure ne vide pas les règles existantes.
+
+### Sauvegarde OneDrive : premiers tests de bout en bout
+
+- La passerelle est découpée en `gatewayCore.ts` (logique, testable) et
+  `gateway.ts` (colle navigateur). Un faux serveur Microsoft en mémoire (PKCE,
+  expiration et rotation des jetons, portée du dossier d'application, redirection
+  de téléchargement, politique de sécurité réelle de la passerelle) permet pour la
+  première fois de tester connexion, envoi, rotation, liste, restauration, 401,
+  429, perte réseau et déconnexion.
+- Corrigé : la rotation à 10 copies datées n'était jamais appliquée ; une panne
+  passagère de Microsoft effaçait le jeton de rafraîchissement et déconnectait
+  l'utilisateur ; deux ordres simultanés lançaient deux rafraîchissements ; un 401
+  sur jeton révoqué et un 429 avec `Retry-After` n'étaient pas rejoués ; la liste
+  ignorait les pages suivantes et listait les sous-dossiers.
+- Corrigé : erreurs réseau et réponses non JSON traduites en français ; plafond
+  d'envoi simple porté de 4 à 250 Mo (d'après la documentation Graph, non vérifié
+  avec un vrai compte) ; passerelle restée bloquée après un chargement raté ;
+  déconnexion qui prétendait réussir hors ligne.
+- Ajouté : `docs/TEST-ONEDRIVE.md`, guide d'essai manuel pas à pas.
+- ⚠️ **L'écriture réelle dans OneDrive reste à éprouver avec un vrai compte** : tout
+  est prouvé contre un faux serveur. Le jeton d'une application monopage expire
+  en 24 h : une reconnexion quotidienne est à prévoir.
+
+### Mise à jour de l'application
+
+- Une notice « Nouvelle version disponible — Recharger » apparaît dès qu'une
+  version est déployée (aussi sur l'écran de connexion), et « Application prête
+  hors ligne » à la première installation.
+- Le rechargement ne fait jamais perdre de saisie sans prévenir : une fenêtre
+  ouverte ou un champ rempli déclenche une confirmation, et « Plus tard » reste
+  possible.
+- Le service worker passe en mode « prompt » avec recherche horaire de nouvelle
+  version, sans aucune requête réseau de la page (`connect-src 'none'` inchangé).
+- ⚠️ Non éprouvé avec un vrai service worker : à vérifier après déploiement. Les
+  installations existantes ne verront la notice qu'après avoir chargé cette version.
+
+### Dépendances de développement
+
+- `npm audit fix` sans changement majeur : vitest 4.1.11, brace-expansion,
+  browserslist, fast-uri, nanoid, source-map-js, undici, baseline-browser-mapping.
+  Seul `package-lock.json` change ; les paquets construits sont identiques octet
+  pour octet.
+- Audit : 12 → 3 vulnérabilités ; 0 en production, avant comme après. Les 3
+  restantes (`braces` via `vite-plugin-singlefile`) n'ont pas de correctif amont
+  et ne concernent que l'outillage de build.
+
 ## Version 2.7.0 — 10 octobre 2026
 
 ### Accès sécurisé par identifiants

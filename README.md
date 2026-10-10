@@ -24,11 +24,13 @@ traceur. Montants en euros.
 - **Virements entre comptes** en écriture double, exclus des bilans recettes/dépenses.
 - **Échéances** : périodicité, date de fin, comptabilisation automatique ou sur
   confirmation, report en cas de jour férié ou non ouvré.
-- **Budgets** mensuels par catégorie, avec reste à vivre.
+- **Budgets** mensuels par catégorie, avec reste à vivre et **alertes** à 80 %
+  (seuil réglable) puis au dépassement.
 - **Biens et projets d'épargne**, patrimoine estimé.
 - **Bilans** mois / trimestre / année, graphiques SVG sans dépendance externe.
 - **Import de relevés** CSV ou OFX : format déduit du contenu, doublons
-  signalés, tiers et catégorie proposés, rien d'écrit avant confirmation.
+  signalés, tiers et catégorie proposés par des règles apprises de vos
+  corrections (origine et confiance affichées), rien d'écrit avant confirmation.
 - **Rapprochement bancaire** : écart entre le solde du relevé et le total des
   opérations pointées, pointage à l'unité ou en bloc.
 - **Trésorerie prévisionnelle** sur 3 à 24 mois, avec la date du premier
@@ -90,7 +92,8 @@ sont confinés dans `onedrive.html`, document distinct dont la politique
 n'autorise que quatre hôtes. `src/utils/csp.test.ts` en énumère la liste, et
 vérifie que la page de l'application garde `connect-src 'none'` dans les deux
 modes de construction. ⚠️ L'écriture effective dans OneDrive n'a pas encore pu
-être éprouvée en conditions réelles — voir le journal des modifications.
+être éprouvée en conditions réelles : elle n'est testée que contre un faux
+serveur Microsoft (2.8.0) — voir `docs/TEST-ONEDRIVE.md` pour l'essai manuel.
 
 ## Accès sécurisé (verrou local)
 

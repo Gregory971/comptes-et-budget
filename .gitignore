@@ -22,3 +22,6 @@ yarn-error.log*
 coverage/
 .env
 .env.*
+
+# Worktrees des agents
+.claude/worktrees/

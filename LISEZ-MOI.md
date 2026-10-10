@@ -27,7 +27,9 @@ Ce fichier autonome est désormais **généré à partir du code source** par
   ponctuelle) avec date de fin facultative, comptabilisation **automatique** au
   lancement ou **manuelle sur confirmation**, et règle de report en cas de jour
   férié ou non ouvré (jour ouvrable suivant, précédent, ou date exacte).
-- **Budget** : budget mensuel par catégorie, consommation et reste à vivre.
+- **Budget** : budget mensuel par catégorie, consommation et reste à vivre. Un
+  bandeau du tableau de bord et une pastille signalent les catégories à 80 % de
+  leur budget (seuil réglable) puis dépassées.
 - **Biens / Projets** : patrimoine estimé et projets d'épargne.
 - **Bilans** : mois / trimestre / année, graphiques (catégories, recettes vs
   dépenses, évolution du solde). Les virements sont exclus des totaux.
@@ -37,8 +39,9 @@ Ce fichier autonome est désormais **généré à partir du code source** par
   chaque mois.
 - **Import d'un relevé bancaire** (écran Comptabiliser) : fichier CSV ou OFX
   téléchargé depuis la banque, analysé sur l'appareil. Les lignes déjà présentes
-  sont détectées et décochées, les tiers connus reconnus dans les libellés, et
-  rien n'est écrit avant confirmation.
+  sont détectées et décochées, tiers et catégories proposés d'après vos corrections
+  précédentes (règles apprises, consultables et oubliables), et rien n'est écrit
+  avant confirmation.
 - **Rapprochement bancaire** (écran Comptes, bouton « Rapprocher ») : écart
   entre le solde du relevé et le total des opérations pointées.
 - **Accès** : écran de connexion à chaque ouverture (adresse puis mot de passe),
@@ -113,8 +116,8 @@ propre politique de sécurité : l'application, elle, conserve `connect-src
 'none'`. L'autorisation demandée à Microsoft
 (`Files.ReadWrite.AppFolder`) ne donne accès qu'à un dossier créé pour
 l'application. ⚠️ L'envoi et la restauration restent à éprouver en conditions
-réelles : le compte de test est refusé par Microsoft (voir le journal des
-modifications, 2.6.0).
+réelles avec votre compte : voir `docs/TEST-ONEDRIVE.md`. Le jeton expire après
+24 h, d'où une reconnexion quotidienne.
 
 **Stockage de la base** : l'application demande au navigateur le classement
 « persistant », qui met la base à l'abri de la suppression automatique
