@@ -52,11 +52,18 @@ export default defineConfig(({ mode }) => {
   const base = single ? './' : (process.env.VITE_BASE ?? './');
   return {
     base,
+    // Le module virtuel `virtual:pwa-register` n'existe que si vite-plugin-pwa
+    // est chargé, donc pas dans le fichier autonome : on lui substitue un module vide.
+    resolve: single
+      ? { alias: { 'virtual:pwa-register': resolve(__dirname, 'src/pwa-stub.ts') } }
+      : {},
     plugins: [
       react(),
       cspPlugin(single),
       ...(single ? [viteSingleFile()] : [VitePWA({
-        registerType: 'autoUpdate',
+        // « prompt » : la nouvelle version attend, et l'application l'annonce
+        // (src/components/UpdateNotice.tsx) au lieu de s'activer en silence.
+        registerType: 'prompt',
         includeAssets: ['favicon.svg'],
         manifest: {
           name: 'Comptes & Budget',

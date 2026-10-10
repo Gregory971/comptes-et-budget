@@ -466,6 +466,24 @@ input[type="checkbox"] {
 }
 .toast .linklike { color: #fff; }
 
+/* Notice de mise à jour : au sommet, centrée, pour ne pas recouvrir le bandeau
+   des échéances (en bas à droite) ; elle doit rester lisible sur l'écran de
+   connexion et au-dessus d'une fenêtre modale (z-index 50). */
+.toast.update-notice {
+  top: 18px;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  width: max-content;
+  max-width: calc(100vw - 36px);
+}
+.toast.update-notice .btn { padding: 6px 14px; }
+
 hr.sep {
   border: none;
   border-top: 1px solid var(--line, #e3e8ef);
