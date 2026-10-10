@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { oneDriveService, type OneDriveStatus } from '../services/oneDriveService';
 import { backupService, type Backup, type BackupSummary } from '../services/backupService';
 import { isEncrypted } from '../services/cryptoService';
+import { KEEP_COPIES } from '../services/autoBackupService';
 import { useStore } from '../store/useStore';
 import { formatBytes } from '../services/storageService';
 import type { RemoteFile } from '../onedrive/protocol';
@@ -50,7 +51,10 @@ export function OneDrivePanel({ database }: { database: Database }) {
       setEtat(await oneDriveService.status());
     } catch (e) {
       setErreur((e as Error).message);
-      setEtat(await oneDriveService.status());
+      // Après un échec, la passerelle a pu perdre le compte (connexion expirée
+      // ou révoquée) : l'état réel est relu pour proposer « Connecter » au lieu
+      // de laisser des boutons d'envoi qui échoueront tous de la même façon.
+      setEtat(await oneDriveService.probe().catch(() => oneDriveService.status()));
     } finally {
       setBusy(null);
     }
@@ -132,7 +136,13 @@ export function OneDrivePanel({ database }: { database: Database }) {
                 <button className="btn" disabled={busy !== null}
                   onClick={() => faire('send', async () => {
                     const r = await oneDriveService.send(database.name);
-                    return `Sauvegarde envoyée : ${r.name}`;
+                    const menage = r.pruned.length > 0
+                      ? ` (${r.pruned.length} ancienne(s) copie(s) supprimée(s) pour n’en garder que ${KEEP_COPIES})`
+                      : '';
+                    const alerte = r.pruneError
+                      ? ` Attention : le ménage des anciennes copies a échoué (${r.pruneError}) ; la sauvegarde, elle, est bien partie.`
+                      : '';
+                    return `Sauvegarde envoyée : ${r.name}${menage}.${alerte}`;
                   })}>
                   {busy === 'send' ? 'Envoi en cours…' : '⬆️ Envoyer maintenant'}
                 </button>

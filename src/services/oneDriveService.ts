@@ -11,9 +11,12 @@
 
 import { db, stamp } from './db';
 import { backupService } from './backupService';
-import { safeBaseName } from './autoBackupService';
+import { KEEP_COPIES, safeBaseName } from './autoBackupService';
 import { toYmd } from '../utils/date';
-import { NS, isAnswer, isConnectEvent, type Order, type RemoteFile } from '../onedrive/protocol';
+import {
+  CONNECT_CHANNEL, NS, isAnswer, isConnectEvent, type ConnectEvent, type Order, type RemoteFile,
+  type UploadResult,
+} from '../onedrive/protocol';
 
 /** Application inscrite le 22/08/2026 dans l'annuaire personnel « Gregory ».
  *  Un identifiant client d'application monopage est public par conception ;
@@ -28,6 +31,14 @@ const ACCOUNT = 'oneDriveAccount';
 
 /** Délai au-delà duquel un ordre sans réponse est considéré perdu. */
 export const TIMEOUT_MS = 30_000;
+
+/**
+ * Délai des ordres qui touchent à Graph (envoi, liste, téléchargement). La
+ * passerelle peut y attendre jusqu'à trois fois 30 s la fin d'une limitation
+ * (429) avant d'abandonner : un délai de 30 s la ferait désavouer par
+ * l'application alors qu'elle poursuit encore l'envoi.
+ */
+export const GRAPH_TIMEOUT_MS = 150_000;
 
 /**
  * Le fichier autonome (file://) ne peut pas servir de passerelle : une URI de
@@ -97,7 +108,7 @@ export class GatewayClient {
     }
   };
 
-  send(order: Omit<Order, 'ns' | 'id'>): Promise<unknown> {
+  send(order: Omit<Order, 'ns' | 'id'>, timeoutMs = this.timeoutMs): Promise<unknown> {
     const cible = this.target();
     if (!cible) return Promise.reject(new Error('Passerelle OneDrive indisponible.'));
     const id = `o${++this.compteur}`;
@@ -105,7 +116,7 @@ export class GatewayClient {
       const minuteur = setTimeout(() => {
         this.attentes.delete(id);
         reject(new Error('La passerelle OneDrive n’a pas répondu.'));
-      }, this.timeoutMs);
+      }, timeoutMs);
       this.attentes.set(id, { resolve, reject, minuteur });
       cible.postMessage({ ...order, ns: NS, id } satisfies Order, this.origin());
     });
@@ -132,27 +143,50 @@ function clientCourant(): GatewayClient {
 /** Charge la passerelle si besoin, et attend son signal de disponibilité. */
 async function passerelle(): Promise<GatewayClient> {
   if (!isSupported()) throw new Error('OneDrive n’est pas disponible depuis un fichier ouvert localement.');
+  // Hors connexion, inutile d'attendre 30 s le chargement d'une passerelle qui
+  // ne viendra pas : le dire tout de suite.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('Vous êtes hors connexion : la sauvegarde OneDrive reprendra au retour du réseau.');
+  }
   clientCourant();
   if (!cadre) {
-    cadre = document.createElement('iframe');
-    cadre.title = 'Passerelle OneDrive';
-    cadre.setAttribute('aria-hidden', 'true');
-    cadre.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-9999px';
+    const iframe = document.createElement('iframe');
+    cadre = iframe;
+    iframe.title = 'Passerelle OneDrive';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-9999px';
     prete = new Promise<void>((resolve, reject) => {
-      const minuteur = setTimeout(() => reject(new Error('Passerelle OneDrive : chargement trop long.')), TIMEOUT_MS);
-      const surMessage = (e: MessageEvent) => {
+      const minuteur = setTimeout(() => {
+        window.removeEventListener('message', surMessage);
+        reject(new Error('Passerelle OneDrive : chargement trop long.'));
+      }, TIMEOUT_MS);
+      function surMessage(e: MessageEvent) {
         if (e.origin === location.origin && isConnectEvent(e.data) && e.data.event === 'ready') {
           clearTimeout(minuteur);
           window.removeEventListener('message', surMessage);
           resolve();
         }
-      };
+      }
       window.addEventListener('message', surMessage);
     });
-    cadre.src = gatewayUrl();
-    document.body.appendChild(cadre);
+    iframe.src = gatewayUrl();
+    document.body.appendChild(iframe);
   }
-  await prete;
+  const monCadre = cadre;
+  try {
+    await prete;
+  } catch (e) {
+    // Un chargement raté ne doit pas être définitif : sans cela, la promesse
+    // rejetée restait en mémoire et TOUS les envois suivants échouaient de la
+    // même façon jusqu'au rechargement de la page. (Le test d'identité évite
+    // d'abattre le cadre neuf qu'un autre appel aurait déjà recréé.)
+    if (cadre === monCadre) {
+      monCadre?.remove();
+      cadre = undefined;
+      prete = undefined;
+    }
+    throw e;
+  }
   return clientCourant();
 }
 
@@ -219,51 +253,79 @@ export const oneDriveService = {
     if (!popup) throw new Error('Fenêtre de connexion bloquée par le navigateur : autorisez-la puis réessayez.');
 
     return new Promise((resolve, reject) => {
-      const minuteur = setTimeout(() => {
-        window.removeEventListener('message', surMessage);
-        reject(new Error('Connexion Microsoft abandonnée.'));
-      }, 5 * 60_000);
-      const surMessage = async (e: MessageEvent) => {
-        if (e.origin !== location.origin || !isConnectEvent(e.data)) return;
-        if (e.data.event === 'ready') return;
+      // Deux voies d'avis : le lien d'ouverture (postMessage) et un canal de
+      // diffusion. Pendant la visite de la page de Microsoft, un navigateur peut
+      // couper le premier (COOP) ; le second, lui, reste de même origine.
+      let canal: BroadcastChannel | undefined;
+      try {
+        if (typeof BroadcastChannel !== 'undefined') canal = new BroadcastChannel(CONNECT_CHANNEL);
+      } catch { /* sans canal, le postMessage reste la voie normale */ }
+
+      const fin = () => {
         clearTimeout(minuteur);
         window.removeEventListener('message', surMessage);
-        if (e.data.event === 'connected') {
-          if (e.data.account) await set(ACCOUNT, e.data.account);
-          await db.settings.delete(LAST_ERROR);
-          resolve({ account: e.data.account });
-        } else {
-          reject(new Error(e.data.error ?? 'Connexion refusée.'));
+        canal?.close();
+      };
+      const minuteur = setTimeout(() => {
+        fin();
+        reject(new Error('Connexion Microsoft abandonnée (aucune réponse en 5 minutes).'));
+      }, 5 * 60_000);
+      let traite = false;
+      const recevoir = async (m: unknown) => {
+        if (traite || !isConnectEvent(m) || m.event === 'ready') return;
+        traite = true;
+        fin();
+        try {
+          if (m.event === 'connected') {
+            if (m.account) await set(ACCOUNT, m.account);
+            await db.settings.delete(LAST_ERROR);
+            resolve({ account: m.account });
+          } else {
+            reject(new Error(m.error ?? 'Connexion refusée.'));
+          }
+        } catch (e) {
+          reject(e as Error); // réglages illisibles : ne jamais laisser l'écran en attente
         }
       };
+      const surMessage = (e: MessageEvent) => {
+        if (e.origin === location.origin) void recevoir(e.data);
+      };
       window.addEventListener('message', surMessage);
+      if (canal) canal.onmessage = (e: MessageEvent<ConnectEvent>) => void recevoir(e.data);
     });
   },
 
+  /**
+   * Déconnecte le compte. L'état local n'est effacé qu'une fois la passerelle
+   * revenue : si elle est injoignable, le jeton y reste, et prétendre
+   * l'inverse laisserait croire à tort que le compte est délié.
+   */
   async disconnect(): Promise<void> {
-    try {
-      await (await passerelle()).send({ type: 'disconnect' });
-    } finally {
-      await db.settings.delete(ACCOUNT);
-      await db.settings.delete(LAST_RUN);
-    }
+    await (await passerelle()).send({ type: 'disconnect' });
+    await db.settings.delete(ACCOUNT);
+    await db.settings.delete(LAST_RUN);
   },
 
   /** Nom du fichier déposé dans le dossier d'application, daté du jour. */
   fileName: (baseName: string, at = new Date()): string =>
     `${safeBaseName(baseName)}_${toYmd(at)}.cbjson`,
 
-  /** Envoie la sauvegarde de la base active. */
-  async send(baseName: string): Promise<{ name: string }> {
+  /**
+   * Envoie la sauvegarde de la base active, puis ne garde que les KEEP_COPIES
+   * copies datées les plus récentes (la rotation a lieu côté passerelle, seule
+   * à pouvoir joindre OneDrive). `pruneError` : la sauvegarde est bien partie,
+   * seul le ménage a échoué.
+   */
+  async send(baseName: string): Promise<{ name: string; pruned: string[]; pruneError?: string }> {
     const clientId = (await get<string>(CLIENT)) ?? DEFAULT_CLIENT_ID;
     const name = this.fileName(baseName);
     try {
-      await (await passerelle()).send({
-        type: 'upload', name, clientId, payload: await backupService.serialize(),
-      });
+      const r = await (await passerelle()).send({
+        type: 'upload', name, clientId, keep: KEEP_COPIES, payload: await backupService.serialize(),
+      }, GRAPH_TIMEOUT_MS) as UploadResult;
       await set(LAST_RUN, stamp());
       await db.settings.delete(LAST_ERROR);
-      return { name };
+      return { name, pruned: r.pruned ?? [], pruneError: r.pruneError };
     } catch (e) {
       await set(LAST_ERROR, (e as Error).message);
       throw e;
@@ -273,12 +335,13 @@ export const oneDriveService = {
   /** Sauvegardes présentes dans le dossier d'application. */
   async list(): Promise<RemoteFile[]> {
     const clientId = (await get<string>(CLIENT)) ?? DEFAULT_CLIENT_ID;
-    return (await (await passerelle()).send({ type: 'list', clientId })) as RemoteFile[];
+    return (await (await passerelle()).send({ type: 'list', clientId }, GRAPH_TIMEOUT_MS)) as RemoteFile[];
   },
 
   /** Récupère le contenu d'une sauvegarde distante, sans rien écrire. */
   async fetchBackup(name: string): Promise<string> {
     const clientId = (await get<string>(CLIENT)) ?? DEFAULT_CLIENT_ID;
-    return (await (await passerelle()).send({ type: 'download', clientId, payload: name })) as string;
+    return (await (await passerelle()).send(
+      { type: 'download', clientId, payload: name }, GRAPH_TIMEOUT_MS)) as string;
   },
 };
