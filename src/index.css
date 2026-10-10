@@ -696,3 +696,42 @@ details[open] > summary { margin-bottom: 4px; }
   .auth-main{padding:22px 20px}
   .lockbtn{width:auto;white-space:nowrap}
 }
+
+/* ---- Alertes de budget (attention dès le seuil, dépassé au-delà de 100 %) ----
+   Le niveau est toujours écrit en toutes lettres : la teinte n'est qu'un renfort. */
+.bud.attention{border-color:var(--orange)}
+.bud.depasse{border-color:var(--red)}
+.bud-status.depasse{color:var(--red)}
+.bud-status.attention{color:var(--txt)}
+.bud-flag{margin-right:8px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:11px}
+
+.bud-alerts{background:color-mix(in oklab,var(--orange) 12%,var(--surface));
+  border:1px solid var(--orange);border-radius:var(--r-card);padding:16px 20px;margin-bottom:18px}
+.bud-alerts.depasse{background:color-mix(in oklab,var(--red) 11%,var(--surface));border-color:var(--red)}
+.bud-alerts-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.bud-alerts-list{list-style:none;margin:0;padding:0}
+.bud-alert{display:flex;align-items:center;gap:12px;padding:8px 0;color:var(--txt);font-size:14px;
+  border-top:1px solid color-mix(in oklab,var(--txt) 12%,transparent)}
+.bud-alert:first-child{border-top:none}
+.bud-alert-lvl{flex:0 0 auto;min-width:92px;font-weight:800;font-size:12px;text-transform:uppercase;
+  letter-spacing:.04em}
+.bud-alert.depasse .bud-alert-lvl{color:var(--red)}
+.bud-alert.attention .bud-alert-lvl{color:var(--txt)}
+.bud-alert-txt{flex:1 1 auto;min-width:0}
+.bud-alert-hide{flex:0 0 auto;font-size:12px;padding:4px 10px}
+@media (max-width:640px){
+  .bud-alert{flex-wrap:wrap;gap:6px}
+  .bud-alert-txt{flex-basis:100%;order:3}
+}
+
+/* Pastille d'alerte sur l'entrée « Budget » de la barre latérale. */
+.topnav button{position:relative}
+.nav-alert{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:var(--r-pill);
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
+  line-height:1;color:oklch(0.2 0.03 235);background:var(--orange);flex-shrink:0}
+.nav-alert.depasse{background:var(--red);color:#fff}
+.topnav button.active .nav-alert{box-shadow:0 0 0 2px #fff}
+@media (max-width:900px){
+  .nav-alert{position:absolute;top:2px;right:4px;margin-left:0;min-width:16px;height:16px;
+    padding:0 4px;font-size:10px}
+}

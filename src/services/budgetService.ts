@@ -2,6 +2,21 @@ import { db, uid, stamp } from './db';
 import { monthRange } from '../utils/date';
 import type { Budget, Cents } from '../types';
 
+/** Ligne de suivi d'un budget pour le mois courant. */
+export interface BudgetStatus {
+  budget: Budget;
+  spentCents: Cents;
+  remainingCents: Cents;
+  /** Consommation plafonnée à 100 : sert à dessiner la barre de progression. */
+  percent: number;
+  /**
+   * Consommation réelle, non plafonnée (125 = 25 % de dépassement). Nécessaire
+   * pour distinguer « budget atteint » de « budget dépassé », que `percent`
+   * confond. Reste à 0 quand le budget est nul : le rapport n'est pas défini.
+   */
+  rawPercent: number;
+}
+
 export const budgetService = {
   list: (dbId: string) => db.budgets.where('dbId').equals(dbId).toArray(),
 
@@ -32,17 +47,17 @@ export const budgetService = {
   },
 
   /** Vue consolidée : budget, dépensé et reste à vivre pour le mois courant. */
-  async monthlyStatus(dbId: string, anchor = new Date()): Promise<
-    { budget: Budget; spentCents: Cents; remainingCents: Cents; percent: number }[]
-  > {
+  async monthlyStatus(dbId: string, anchor = new Date()): Promise<BudgetStatus[]> {
     const [budgets, spent] = await Promise.all([this.list(dbId), this.spentByCategory(dbId, anchor)]);
     return budgets.map(budget => {
       const spentCents = spent[budget.categoryId] ?? 0;
+      const rawPercent = budget.monthlyAmountCents > 0
+        ? (spentCents / budget.monthlyAmountCents) * 100 : 0;
       return {
         budget, spentCents,
         remainingCents: budget.monthlyAmountCents - spentCents,
-        percent: budget.monthlyAmountCents > 0
-          ? Math.min(100, (spentCents / budget.monthlyAmountCents) * 100) : 0,
+        percent: Math.min(100, rawPercent),
+        rawPercent,
       };
     });
   },
