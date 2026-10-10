@@ -5,6 +5,7 @@ import { useActiveDatabase, useBases } from '../hooks/useData';
 import { ImportButton } from './ImportButton';
 import { ExportButton } from './ExportButton';
 import { Modal } from './Modal';
+import { BudgetNavBadge } from './BudgetAlerts';
 import type { Profile } from '../types';
 
 export { formatEur as eur, formatNum as eurn } from '../utils/money';
@@ -68,6 +69,7 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
               onClick={() => setScreen(n.key)}>
               <span className="dot" aria-hidden="true" />
               <span className="ic" aria-hidden="true">{n.ic}</span>{n.label}
+              {n.key === 'budget' && database && <BudgetNavBadge dbId={database.id} />}
             </button>
           ))}
         </nav>

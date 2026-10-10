@@ -4,6 +4,7 @@ import { useAccounts, useBalances, useReferentials } from '../hooks/useData';
 import { operationService } from '../services/operationService';
 import { periodRange, reportService } from '../services/reportService';
 import { scheduleService } from '../services/scheduleService';
+import { BudgetAlertBanner } from '../components/BudgetAlerts';
 import { formatEur } from '../utils/money';
 import { formatFr, today } from '../utils/date';
 import { hueOf } from '../utils/hue';
@@ -52,6 +53,8 @@ export function HomeScreen({ database }: { database: Database }) {
         </div>
         <span className="period-pill"><span className="pip" aria-hidden="true" />{range.label}</span>
       </div>
+
+      <BudgetAlertBanner dbId={dbId} />
 
       <div className="kpis">
         <div className="kpi">

@@ -4,6 +4,7 @@ import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
 import { ExportButton } from '../components/ExportButton';
 import { OneDrivePanel } from '../components/OneDrivePanel';
+import { BudgetAlertSettings } from '../components/BudgetAlerts';
 import { IconPicker } from '../components/IconPicker';
 import { SecurityTab } from './SecurityTab';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
@@ -319,6 +320,10 @@ function GeneralTab({ database }: { database: Database }) {
             onClick={() => { writeTheme(m); setTheme(m); }}>{THEME_LABEL[m]}</button>
         ))}
       </div>
+
+      <hr className="sep" />
+
+      <BudgetAlertSettings dbId={database.id} />
 
       <hr className="sep" />
 

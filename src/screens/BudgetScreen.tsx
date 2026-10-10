@@ -4,6 +4,8 @@ import { useReferentials } from '../hooks/useData';
 import { MoneyInput } from '../components/MoneyInput';
 import { ConfirmDialog } from '../components/Modal';
 import { budgetService } from '../services/budgetService';
+import { budgetState, LEVEL_LABEL } from '../services/budgetAlertService';
+import { useBudgetAlertPrefs } from '../hooks/useBudgetAlerts';
 import { formatEur, type Cents } from '../utils/money';
 import type { Database, Budget } from '../types';
 
@@ -15,6 +17,8 @@ export function BudgetScreen({ database }: { database: Database }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<Budget | null>(null);
 
+  // Seuil d'attention choisi dans les Préférences (80 % par défaut).
+  const { threshold } = useBudgetAlertPrefs();
   // Une seule lecture de la tranche du mois, agrégée par catégorie.
   const rows = useLiveQuery(() => budgetService.monthlyStatus(dbId), [dbId], []) ?? [];
   const sorted = [...rows].sort((a, b) =>
@@ -66,12 +70,16 @@ export function BudgetScreen({ database }: { database: Database }) {
         <div className="bud-grid">
           {sorted.map(r => {
             const cat = ref.cat(r.budget.categoryId);
-            const over = r.percent >= 100;
+            // État d'après la consommation réelle : « 100 % pile » est une
+            // attention (budget atteint), pas encore un dépassement.
+            const state = budgetState(r.spentCents, r.budget.monthlyAmountCents, threshold);
+            const over = state === 'depasse';
             // Teintes de la maquette : turquoise tant que la marge est
             // confortable, corail à l'approche du plafond, rouge au-delà.
-            const hue = over ? 30 : r.percent >= 85 ? 45 : 195;
+            const hue = over ? 30 : state === 'attention' ? 45 : 195;
+            const shown = Math.round(r.rawPercent);
             return (
-              <div className="bud" key={r.budget.id}>
+              <div className={'bud' + (state === 'ok' ? '' : ' ' + state)} key={r.budget.id}>
                 <div className="row" style={{ alignItems: 'baseline', marginBottom: 12 }}>
                   <span className="bud-cat">
                     <span aria-hidden="true">{cat?.icon}</span> {cat?.name ?? 'Catégorie supprimée'}
@@ -85,15 +93,21 @@ export function BudgetScreen({ database }: { database: Database }) {
                 </div>
                 <div className="progress" role="progressbar" aria-valuenow={Math.round(r.percent)}
                   aria-valuemin={0} aria-valuemax={100}
+                  aria-valuetext={`${shown} % du budget${over ? ', dépassé' : ''}`}
                   aria-label={`Consommation du budget ${cat?.name ?? ''}`}>
                   <div style={{
                     width: Math.min(100, r.percent) + '%', height: '100%',
                     borderRadius: 999, background: `oklch(0.62 0.14 ${hue})`,
                   }} />
                 </div>
-                <div className="bud-status" style={over ? { color: 'var(--red)' } : undefined}>
+                <div className={'bud-status' + (state === 'ok' ? '' : ' ' + state)}>
+                  {state !== 'ok' && (
+                    <span className="bud-flag">
+                      <span aria-hidden="true">{over ? '⛔' : '⚠️'}</span> {LEVEL_LABEL[state]}
+                    </span>
+                  )}
                   {r.remainingCents >= 0
-                    ? `${r.percent.toFixed(0)} % utilisé · reste ${formatEur(r.remainingCents)}`
+                    ? `${Math.floor(r.percent)} % utilisé · reste ${formatEur(r.remainingCents)}`
                     : `Budget dépassé de ${formatEur(-r.remainingCents)}`}
                 </div>
               </div>
