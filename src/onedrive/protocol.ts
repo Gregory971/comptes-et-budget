@@ -21,7 +21,27 @@ export interface Order {
   /** Identifiant d'application, transmis à chaque ordre : la passerelle ne
    *  conserve aucun réglage propre. */
   clientId?: string;
+  /** Nombre de copies datées à conserver après un envoi (rotation). Sans lui,
+   *  rien n'est supprimé. */
+  keep?: number;
 }
+
+/** Résultat d'un envoi. `pruned` : copies anciennes supprimées par la rotation ;
+ *  `pruneError` : la rotation a échoué, mais la sauvegarde, elle, est bien partie. */
+export interface UploadResult {
+  name: string;
+  size: number;
+  pruned: string[];
+  pruneError?: string;
+}
+
+/**
+ * Canal de diffusion entre documents de même origine. Doublon volontaire de
+ * `window.opener` : un navigateur peut couper le lien avec la fenêtre
+ * d'ouverture (COOP) pendant la visite de la page de Microsoft, et la
+ * connexion réussie ne serait alors jamais signalée à l'application.
+ */
+export const CONNECT_CHANNEL = 'comptes-budget-onedrive';
 
 export interface RemoteFile {
   name: string;

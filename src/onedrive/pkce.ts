@@ -113,22 +113,44 @@ export interface TokenSet {
   expiresAt: number;
 }
 
+/**
+ * Erreur du point de terminaison de jetons. `code` est le champ `error` de
+ * OAuth (`invalid_grant`, `temporarily_unavailable`…) : c'est lui, et non le
+ * texte, qui dit si le jeton de rafraîchissement est définitivement mort.
+ */
+export class TokenError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+    this.name = 'TokenError';
+  }
+}
+
+/** Erreurs après lesquelles le jeton de rafraîchissement ne servira plus jamais. */
+export const FATAL_TOKEN_ERRORS = new Set(['invalid_grant', 'interaction_required', 'consent_required']);
+
 /** Interprète la réponse du point de terminaison de jetons. */
 export function readTokenResponse(json: unknown, now: number): TokenSet {
   const r = json as Record<string, unknown>;
   if (typeof r?.error === 'string') {
     const d = typeof r.error_description === 'string' ? r.error_description : r.error;
-    throw new Error(String(d).split('\n')[0]);
+    const ligne = String(d).split('\n')[0].trim();
+    // AADSTS700084 : le jeton d'une application monopage vit 24 h, sans renouvellement possible.
+    const message = /AADSTS700084/.test(ligne)
+      ? 'La connexion Microsoft a expiré (24 h au plus pour une application web) : reconnectez-vous.'
+      : ligne;
+    throw new TokenError(message, r.error);
   }
   if (typeof r?.access_token !== 'string') {
-    throw new Error('Réponse inattendue du service d’authentification Microsoft.');
+    throw new TokenError('Réponse inattendue du service d’authentification Microsoft.');
   }
-  const seconds = typeof r.expires_in === 'number' ? r.expires_in : 3600;
+  const brut = Number(r.expires_in);
+  const seconds = Number.isFinite(brut) && brut > 0 ? brut : 3600;
   return {
     accessToken: r.access_token,
     refreshToken: typeof r.refresh_token === 'string' ? r.refresh_token : undefined,
     // Marge de 60 s : un jeton qui expire pendant l'envoi le ferait échouer.
-    expiresAt: now + (seconds - 60) * 1000,
+    // Un jeton annoncé plus court que cela garde au moins la moitié de sa vie.
+    expiresAt: now + Math.max(seconds - 60, Math.floor(seconds / 2)) * 1000,
   };
 }
 

@@ -3,7 +3,10 @@ import {
   accountFromIdToken, authorizeUrl, codeExchangeBody, parseCallback,
   readTokenResponse, refreshBody, SCOPES, tokenUrl,
 } from './pkce';
-import { childrenUrl, deleteUrl, MAX_SIMPLE_UPLOAD, readChildren, readError, uploadUrl } from './graph';
+import {
+  childrenUrl, deleteUrl, MAX_SIMPLE_UPLOAD, nextLinkOf, parseRetryAfter, readChildren, readError,
+  staleCopies, uploadUrl,
+} from './graph';
 import { isAnswer, isConnectEvent, isOrder, NS } from './protocol';
 
 describe('URL de connexion Microsoft', () => {
@@ -125,8 +128,63 @@ describe('appels Graph', () => {
     expect(readError(418, {})).toBe('Erreur OneDrive (code 418).');
   });
 
-  it('connaît la limite de l’envoi simple', () => {
-    expect(MAX_SIMPLE_UPLOAD).toBe(4 * 1024 * 1024);
+  it('connaît la limite de l’envoi simple (250 Mo selon la documentation Graph)', () => {
+    expect(MAX_SIMPLE_UPLOAD).toBe(250 * 1024 * 1024);
+  });
+
+  it('ignore les sous-dossiers dans la liste', () => {
+    expect(readChildren({ value: [{ name: 'Archives', folder: {} }, { name: 'a.cbjson', size: 1 }] }))
+      .toEqual([{ name: 'a.cbjson', size: 1, modifiedAt: '' }]);
+  });
+
+  it('ne suit une page suivante que si elle reste chez Graph', () => {
+    expect(nextLinkOf({ '@odata.nextLink': 'https://graph.microsoft.com/v1.0/me/drive/special/approot/children?$skiptoken=3' }))
+      .toMatch(/skiptoken=3/);
+    expect(nextLinkOf({ '@odata.nextLink': 'https://pirate.exemple.test/x' })).toBeUndefined();
+    expect(nextLinkOf({})).toBeUndefined();
+  });
+
+  it('lit Retry-After en secondes ou en date HTTP', () => {
+    expect(parseRetryAfter('7', 0)).toBe(7000);
+    expect(parseRetryAfter('0', 0)).toBe(0);
+    expect(parseRetryAfter(new Date(10_000).toUTCString(), 5_000)).toBe(5000);
+    expect(parseRetryAfter(new Date(1_000).toUTCString(), 5_000)).toBe(0);
+    expect(parseRetryAfter('bientôt', 0)).toBeUndefined();
+    expect(parseRetryAfter(null, 0)).toBeUndefined();
+  });
+
+  it('traduit les codes d’erreur de Graph en français', () => {
+    expect(readError(409, {})).toMatch(/Conflit/);
+    expect(readError(423, {})).toMatch(/verrouillé/);
+    expect(readError(429, { error: { message: 'Please retry' } })).toMatch(/limite temporairement/);
+    expect(readError(503, {})).toMatch(/indisponible \(code 503\)/);
+    expect(readError(403, { error: { innerError: { code: 'serviceReadOnly' } } })).toMatch(/lecture seule/);
+  });
+});
+
+describe('rotation des copies datées', () => {
+  const noms = (d: number[]) => d.map(n => `Comptes_2026-09-${String(n).padStart(2, '0')}.cbjson`);
+
+  it('désigne les plus anciennes au-delà de la limite', () => {
+    expect(staleCopies(noms([1, 2, 3, 4, 5]), noms([5])[0], 3)).toEqual(noms([2, 1]));
+  });
+
+  it('ne désigne rien tant que la limite n’est pas dépassée', () => {
+    expect(staleCopies(noms([1, 2, 3]), noms([3])[0], 3)).toEqual([]);
+  });
+
+  it('ignore les autres bases et les fichiers sans date', () => {
+    const tout = [...noms([1, 2]), 'Autre_2020-01-01.cbjson', 'notes.txt', 'Comptes_brouillon.cbjson'];
+    expect(staleCopies(tout, noms([2])[0], 1)).toEqual(noms([1]));
+  });
+
+  it('ne propose jamais le fichier venant d’être écrit', () => {
+    // Le fichier écrit est le plus ancien par la date : il serait sinon supprimé.
+    expect(staleCopies(noms([5, 6, 7]), noms([5])[0], 2)).toEqual([]);
+  });
+
+  it('ne fait rien si le nom écrit n’est pas une copie datée', () => {
+    expect(staleCopies(noms([1, 2, 3]), 'sauvegarde.cbjson', 1)).toEqual([]);
   });
 });
 
