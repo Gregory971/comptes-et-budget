@@ -148,6 +148,27 @@ describe('cotations et synthèse', () => {
   });
 });
 
+describe('import de cotations', () => {
+  beforeEach(reset);
+
+  it('importe un lot et remplace les cotations des jours déjà connus', async () => {
+    const t = await titre();
+    await securityService.setPrice({ dbId: DB, securityId: t.id, date: '2026-03-01', price: 10 });
+    const n = await securityService.importPrices(DB, t.id, [
+      { date: '2026-02-01', price: 9 }, { date: '2026-03-01', price: 11 }, { date: '2026-04-01', price: 12 },
+    ]);
+    expect(n).toBe(3);
+    const prix = await securityService.prices(t.id);
+    expect(prix.map(p => [p.date, p.price])).toEqual([['2026-04-01', 12], ['2026-03-01', 11], ['2026-02-01', 9]]);
+  });
+
+  it('refuse un titre inconnu ou d’une autre base', async () => {
+    const t = await titre();
+    await expect(securityService.importPrices(DB, 'inconnu', [{ date: '2026-02-01', price: 9 }])).rejects.toThrow(/introuvable/);
+    await expect(securityService.importPrices('autre', t.id, [{ date: '2026-02-01', price: 9 }])).rejects.toThrow(/introuvable/);
+  });
+});
+
 describe('écritures bancaires', () => {
   beforeEach(reset);
 

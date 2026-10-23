@@ -52,6 +52,37 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   plutôt que de la rendre fausse. Un virement ne se ventile pas.
 - Données : champ facultatif `splits` sur les opérations, aucune migration.
 
+### Échanges : export et import
+
+- **Exporter les opérations** (écran Opérations) en CSV, Excel (.xlsx), QIF ou OFX,
+  pour la période affichée ou toutes les opérations, d'un compte ou de tous.
+  Options CSV : séparateur de colonnes, séparateur des décimales, format des
+  dates, en-tête, BOM UTF-8 (accents lisibles dans Excel). Un compteur annonce
+  combien d'opérations seront écrites avant d'exporter.
+- Les opérations ventilées sortent en une ligne « Ventilée : A · B » ou, au choix,
+  en une ligne par catégorie ; les montants restent dans la devise de chaque
+  compte (colonne « Devise »). Aucune dépendance ajoutée : le classeur .xlsx est
+  écrit par un petit générateur interne (montants en vrais nombres).
+- Sécurité : en CSV, un libellé qui commence par `=`, `+`, `-` ou `@` est préfixé
+  d'une apostrophe pour qu'un tableur ne l'exécute pas comme une formule (les
+  libellés bancaires viennent de l'extérieur).
+- **Import de relevés QIF**, en plus du CSV et de l'OFX. L'ordre des dates
+  (jour/mois ou mois/jour) est déduit du fichier ; en cas d'ambiguïté totale, il
+  est lu en jour/mois et le fichier est signalé.
+- **Détection des virements à l'import** : une ligne dont une opération d'un autre
+  compte (même devise, hors prêt et comptes archivés) a le montant opposé à
+  quelques jours près est signalée « virement probable ». C'est une suggestion :
+  la case « lier les deux » est décochée d'office. Cochée, la ligne devient un
+  volet de virement et l'opération existante l'autre volet (même `transferId`,
+  catégorie et ventilation retirées) ; les deux sortent des bilans et le total des
+  comptes redevient juste. Si l'opération existante a changé entre-temps, la ligne
+  est importée normalement.
+- **Import de cotations** d'un titre par fichier : « Date;Clôture », export Yahoo
+  (Close, pas Adj Close), « 25/10/2026;52,3456 »… Les cours gardent toutes leurs
+  décimales ; les lignes illisibles sont listées, jamais avalées.
+- Non repris : les profils d'import mémorisés — le format des relevés est déduit du
+  contenu, ce qui couvre les cas courants.
+
 ### Placements
 
 - Nouvel écran **Placements** : titres (action, ETF, fonds), mouvements et

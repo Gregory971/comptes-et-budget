@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { SecurityModal, SecurityPriceModal, SecurityTxModal } from '../components/SecurityModals';
 import { securityService, type SecurityStatus } from '../services/securityService';
 import { fmtQty } from '../utils/portfolio';
+import { parsePriceFile } from '../utils/priceFile';
 import { formatEur } from '../utils/money';
 import { formatFr } from '../utils/date';
 import type { Cents, Database, Security, SecurityTxType } from '../types';
@@ -129,6 +130,19 @@ function SecurityDetail({ dbId, status, onClose }: { dbId: string; status: Secur
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [removeTx, setRemoveTx] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState<string[] | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function importer(file: File) {
+    setError(null); setImportMsg(null);
+    try {
+      const lu = parsePriceFile(await file.text());
+      const n = lu.entries.length ? await securityService.importPrices(dbId, security.id, lu.entries) : 0;
+      setImportMsg([n > 0 ? `${n} cotation(s) importée(s).` : 'Aucune cotation importée.', ...lu.warnings]);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   async function run(fn: () => Promise<unknown>) {
     setError(null);
@@ -151,12 +165,21 @@ function SecurityDetail({ dbId, status, onClose }: { dbId: string; status: Secur
         <button className="btn" onClick={() => setAction('vente')} disabled={position.quantity <= 0}>Vendre</button>
         <button className="btn ghost" onClick={() => setAction('dividende')}>Dividende</button>
         <button className="btn ghost" onClick={() => setAction('cours')}>Actualiser le cours</button>
+        <button className="btn ghost" onClick={() => fileRef.current?.click()}>Importer des cotations</button>
+        <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" style={{ display: 'none' }} aria-label="Fichier de cotations"
+          onChange={e => { const f = e.target.files?.[0]; if (f) void importer(f); e.target.value = ''; }} />
         <button className="btn ghost" onClick={() => setAction('ajustement')}>Ajuster les parts</button>
         <button className="btn ghost" onClick={() => setAction('renommer')}>Modifier</button>
         <button className="btn ghost" onClick={() => security.archived ? securityService.unarchive(security.id) : setConfirmArchive(true)}>
           {security.archived ? 'Réactiver' : 'Archiver'}</button>
       </div>
       {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
+      {importMsg && (
+        <div className="card" role="status" style={{ margin: '4px 0 8px' }}>
+          <div>{importMsg[0]}</div>
+          {importMsg.slice(1).map((w, i) => <div key={i} className="muted" style={{ fontSize: 12 }}>⚠️ {w}</div>)}
+        </div>
+      )}
 
       <strong>Mouvements</strong>
       <div style={{ maxHeight: 240, overflow: 'auto', marginBottom: 12 }}>

@@ -104,7 +104,8 @@ describe('écran Placements', () => {
     saisir(within(achat).getByLabelText('Quantité (parts)'), '2');
     saisir(within(achat).getByLabelText('Cours unitaire (€)'), '100');
     saisir(within(achat).getByLabelText('Frais (€)'), '1,5');
-    await waitFor(() => expect(within(achat).getByLabelText('Compte')).toBeTruthy());
+    // Les comptes se chargent après le premier rendu : on attend que l'option existe avant de la choisir.
+    await waitFor(() => expect(within(achat).getByRole('option', { name: 'Courant' })).toBeTruthy());
     const compte = (await accountService.list(base.id))[0];
     fireEvent.change(within(achat).getByLabelText('Compte'), { target: { value: compte.id } });
     fireEvent.click(within(achat).getByRole('button', { name: 'Enregistrer' }));
@@ -142,6 +143,18 @@ describe('écran Placements', () => {
     saisir(within(dialog).getByLabelText('Montant perçu (€)'), '3,20');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
     await waitFor(() => expect(detail.textContent).toMatch(/Dividendes : 3,20/));
+  });
+
+  it('importe un fichier de cotations et signale les lignes ignorées', async () => {
+    const t = await securityService.create({ dbId: base.id, name: 'Action Alpha' });
+    await securityService.addTx({ dbId: base.id, securityId: t.id, date: '2026-01-10', type: 'achat', quantity: 10, unitPrice: 50 });
+    render(<PlacementsScreen database={base} />);
+    const detail = await ouvrirDetail('Action Alpha');
+    const fichier = new File(['Date;Cours\n25/10/2026;62,5\nhier;60\n'], 'cotations.csv', { type: 'text/csv' });
+    fireEvent.change(within(detail).getByLabelText('Fichier de cotations'), { target: { files: [fichier] } });
+    await waitFor(() => expect(detail.textContent).toMatch(/1 cotation\(s\) importée\(s\)/));
+    expect(detail.textContent).toMatch(/Ligne 3 ignorée : date illisible/);
+    await waitFor(() => expect(detail.textContent).toMatch(/Valeur : 625,00/));
   });
 
   it('un titre archivé disparaît du total mais reste consultable', async () => {

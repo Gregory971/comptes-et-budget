@@ -31,6 +31,15 @@ export { matchPayee };
 /** Tolérance de date entre le relevé et la saisie manuelle (jours). */
 export const DUPLICATE_WINDOW_DAYS = 4;
 
+/** Opération d'un AUTRE compte qui ressemble à l'autre moitié d'un virement. */
+export interface TransferCandidate {
+  operationId: string;
+  accountId: string;
+  accountName: string;
+  date: Ymd;
+  label?: string;
+}
+
 export interface ImportCandidate extends StatementEntry {
   /** Clé de ligne, stable le temps de la fenêtre de confirmation. */
   key: string;
@@ -45,6 +54,13 @@ export interface ImportCandidate extends StatementEntry {
   /** Tiers et catégorie posés d'office : référence pour savoir ce que l'utilisateur a corrigé. */
   autoPayeeId?: string;
   autoCategoryId?: string;
+  /**
+   * Autre moitié probable d'un virement : une opération d'un autre compte, de
+   * montant opposé, à quelques jours près. Une SUGGESTION — rien n'est lié sans
+   * que l'utilisateur coche `linkTransfer`.
+   */
+  transferCandidate?: TransferCandidate;
+  linkTransfer?: boolean;
   /** Ligne retenue pour l'import ; un doublon est décoché d'office. */
   selected: boolean;
 }
@@ -61,15 +77,26 @@ const daysBetween = (a: Ymd, b: Ymd) =>
 export async function prepareImport(
   dbId: string, accountId: string, entries: StatementEntry[],
 ): Promise<ImportCandidate[]> {
-  const [historique, payees, cats, groups, rules] = await Promise.all([
+  const [historique, payees, cats, groups, rules, comptes] = await Promise.all([
     db.operations.where('dbId').equals(dbId).toArray(),
     payeeService.list(dbId, true),
     categoryService.listCategories(dbId),
     categoryService.listGroups(dbId),
     db.categorizationRules.where('dbId').equals(dbId).toArray(),
+    db.accounts.where('dbId').equals(dbId).toArray(),
   ]);
   const vivantes = historique.filter(o => o.accountId === accountId && !o.deletedAt);
   const consommees = new Set<string>();
+  // Autres moitiés de virement : seulement entre comptes de même devise (les montants
+  // doivent se compenser tels quels), jamais avec un prêt, et chacune une seule fois.
+  const compte = new Map(comptes.map(a => [a.id, a]));
+  const courant = compte.get(accountId);
+  const jumeaux = historique.filter(o => {
+    const a = compte.get(o.accountId);
+    return o.accountId !== accountId && !o.deletedAt && o.kind !== 'virement' && !!a && !a.archived
+      && a.type !== 'pret' && (a.currency ?? '') === (courant?.currency ?? '');
+  });
+  const lies = new Set<string>();
 
   const groupKind = new Map(groups.map(g => [g.id, g.kind]));
   const categoryKinds = new Map<string, LineKind>();
@@ -90,6 +117,9 @@ export async function prepareImport(
     const proposal = propose(e.label, e.amountCents, ctx);
     // Seule une proposition assez sûre est posée ; les autres restent des suggestions.
     const posee = isApplied(proposal) ? proposal : undefined;
+    // Un doublon n'est pas une opération à créer : inutile de lui chercher un virement.
+    const jumeau = jumelle ? undefined : trouveVirement(e, jumeaux, lies);
+    if (jumeau) lies.add(jumeau.id);
     const payeeId = posee?.payeeId;
     return {
       ...e,
@@ -103,8 +133,19 @@ export async function prepareImport(
       autoPayeeId: payeeId,
       autoCategoryId: posee?.categoryId,
       selected: !jumelle,
+      transferCandidate: jumeau && {
+        operationId: jumeau.id, accountId: jumeau.accountId,
+        accountName: compte.get(jumeau.accountId)?.name ?? '', date: jumeau.date, label: jumeau.label,
+      },
     };
   });
+}
+
+/** Opération d'un autre compte de montant exactement opposé, la plus proche en date. */
+function trouveVirement(e: StatementEntry, autres: Operation[], deja: Set<string>): Operation | undefined {
+  const candidates = autres.filter(o =>
+    !deja.has(o.id) && o.amountCents === -e.amountCents && daysBetween(o.date, e.date) <= DUPLICATE_WINDOW_DAYS);
+  return [...candidates].sort((a, b) => daysBetween(a.date, e.date) - daysBetween(b.date, e.date))[0];
 }
 
 function trouveDoublon(
@@ -131,6 +172,8 @@ export interface ImportResult {
   batchLabel: string;
   /** Règles créées, ajustées ou confirmées d'après les choix de l'utilisateur. */
   rulesLearned: number;
+  /** Lignes devenues l'un des deux volets d'un virement avec une opération existante. */
+  transfersLinked: number;
 }
 
 /**
@@ -156,8 +199,29 @@ export async function commitImport(
   const payeeOf = (c: ImportCandidate) =>
     c.payeeId ?? (c.payeeName?.trim() ? payeeIds.get(norm(c.payeeName)) : undefined);
 
+  let transfersLinked = 0;
+  const virements = new Set<string>();   // clés des lignes liées, exclues de l'apprentissage
   await db.transaction('rw', db.operations, async () => {
     for (const c of retenues) {
+      // Lien de virement : on relit l'opération existante, qui a pu changer depuis la
+      // préparation. Si elle ne convient plus, la ligne est importée comme une opération ordinaire.
+      const autre = c.linkTransfer && c.transferCandidate
+        ? await db.operations.get(c.transferCandidate.operationId) : undefined;
+      if (autre && !autre.deletedAt && autre.kind !== 'virement' && autre.accountId !== accountId
+          && autre.amountCents === -c.amountCents) {
+        const transferId = uid();
+        await operationService.create({
+          dbId, accountId, date: c.date, amountCents: c.amountCents, kind: 'virement', transferId,
+          label: c.label || undefined, reference: c.reference, note: `${batchLabel} (lot ${batchId})`,
+        });
+        // L'écriture existante devient l'autre volet : plus de catégorie ni de ventilation.
+        await db.operations.update(autre.id, {
+          kind: 'virement', transferId, categoryId: undefined, splits: undefined, updatedAt: new Date().toISOString(),
+        });
+        transfersLinked++;
+        virements.add(c.key);
+        continue;
+      }
       await operationService.create({
         dbId, accountId, date: c.date,
         amountCents: Math.abs(c.amountCents),
@@ -173,7 +237,7 @@ export async function commitImport(
 
   let rulesLearned = 0;
   try {
-    const items: LearnItem[] = retenues.map(c => ({
+    const items: LearnItem[] = retenues.filter(c => !virements.has(c.key)).map(c => ({
       label: c.label, amountCents: c.amountCents,
       final: { categoryId: c.categoryId, payeeId: payeeOf(c) },
       auto: { categoryId: c.autoCategoryId, payeeId: c.autoPayeeId },
@@ -187,7 +251,7 @@ export async function commitImport(
 
   return {
     imported: retenues.length, skipped: candidates.length - retenues.length,
-    batchLabel, rulesLearned,
+    batchLabel, rulesLearned, transfersLinked,
   };
 }
 

@@ -48,7 +48,7 @@ export function ComptabiliserScreen({ database }: { database: Database }) {
         <hr className="sep" />
         <strong>Importer un relevé de banque</strong>
         <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-          Fichier CSV ou OFX téléchargé depuis votre banque. Il est analysé sur cet
+          Fichier CSV, OFX ou QIF téléchargé depuis votre banque. Il est analysé sur cet
           appareil ; chaque ligne est présentée avant écriture, et celles déjà
           présentes dans la base sont signalées.
         </p>

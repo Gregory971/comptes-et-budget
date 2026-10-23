@@ -1,4 +1,4 @@
-// Lecture d'un relevé bancaire — CSV ou OFX/QFX.
+// Lecture d'un relevé bancaire — CSV, OFX/QFX ou QIF.
 //
 // Rien ne sort de l'appareil : le fichier est lu par le navigateur et analysé
 // ici même. Aucune requête réseau n'est possible (connect-src 'none').
@@ -25,7 +25,7 @@ export interface StatementEntry {
 }
 
 export interface StatementParse {
-  format: 'csv' | 'ofx';
+  format: 'csv' | 'ofx' | 'qif';
   entries: StatementEntry[];
   /** Lignes écartées, avec leur motif — jamais d'échec silencieux. */
   warnings: string[];
@@ -298,11 +298,88 @@ function parseOfx(text: string): StatementParse {
   return { format: 'ofx', entries, warnings };
 }
 
+/* ---------------------------------------------------------------------- QIF */
+
+/**
+ * QIF (Quicken) : des enregistrements de lignes « une lettre + une valeur »,
+ * terminés par « ^ ». D date, T montant (U en variante), P bénéficiaire,
+ * M mémo, N numéro de chèque ; L (catégorie), les lignes de ventilation S/E/$
+ * et les en-têtes « !… » sont ignorés — le montant T est déjà le total.
+ *
+ * Le format ne dit pas l'ordre des dates. On le déduit du fichier : un premier
+ * champ supérieur à 12 est forcément un jour (JJ/MM), un second supérieur à 12
+ * forcément un jour (MM/JJ). Si rien ne tranche, on lit jour/mois — l'usage
+ * français — et on le dit.
+ */
+/** Date QIF : deux champs et une année sur 2 ou 4 chiffres ; l'apostrophe est celle de Quicken (« 5'26 »). */
+const QIF_DATE = /^(\d{1,2})[/.'-](\d{1,2})[/.'-](\d{2}|\d{4})$/;
+
+function qifDate(compact: string, monthFirst: boolean): Ymd | null {
+  const m = QIF_DATE.exec(compact);
+  if (!m) return parseDate(compact);
+  const y = m[3].length === 2 ? (Number(m[3]) < 70 ? 2000 : 1900) + Number(m[3]) : Number(m[3]);
+  return monthFirst ? build(y, +m[1], +m[2]) : build(y, +m[2], +m[1]);
+}
+
+function parseQif(text: string): StatementParse {
+  const warnings: string[] = [];
+  const records: { d?: string; t?: string; p?: string; m?: string; n?: string; line: number }[] = [];
+  let cur: (typeof records)[number] = { line: 0 };
+  let started = false;
+
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) return;
+    if (line === '^') {
+      if (started) records.push(cur);
+      cur = { line: i + 2 }; started = false;
+      return;
+    }
+    if (line.startsWith('!')) return;
+    if (!started) { cur = { ...cur, line: i + 1 }; started = true; }
+    const v = line.slice(1).trim();
+    switch (line[0].toUpperCase()) {
+      case 'D': cur.d = v; break;
+      case 'T': case 'U': if (cur.t === undefined) cur.t = v; break;
+      case 'P': cur.p = v; break;
+      case 'M': cur.m = v; break;
+      case 'N': cur.n = v; break;
+      default: break;
+    }
+  });
+  if (started) records.push(cur);
+
+  // Ordre des dates, d'après l'ensemble du fichier.
+  const parts = records.map(r => QIF_DATE.exec((r.d ?? '').replace(/\s/g, '')));
+  const anyFirstOver12 = parts.some(m => m && +m[1] > 12);
+  const anySecondOver12 = parts.some(m => m && +m[2] > 12);
+  const monthFirst = !anyFirstOver12 && anySecondOver12;
+  if (!anyFirstOver12 && !anySecondOver12 && parts.some(Boolean)) {
+    warnings.push('Les dates du fichier QIF sont ambiguës : lues en jour/mois/année. Vérifiez-les avant d’importer.');
+  }
+
+  const entries: StatementEntry[] = [];
+  records.forEach((r, i) => {
+    const where = `Enregistrement ${i + 1} (ligne ${r.line})`;
+    const compact = (r.d ?? '').replace(/\s/g, '');
+    const date = qifDate(compact, monthFirst);
+    if (!date) { warnings.push(`${where} : date illisible (« ${r.d ?? ''} »).`); return; }
+    const amount = r.t === undefined ? null : parseAmount(r.t);
+    if (amount === null) { warnings.push(`${where} : montant illisible (« ${r.t ?? ''} »).`); return; }
+    const label = [r.p, r.m].filter((x, k, a) => x && a.indexOf(x) === k).join(' — ') || '(sans libellé)';
+    entries.push({ date, label, amountCents: amount, ...(r.n ? { reference: r.n } : {}) });
+  });
+
+  if (entries.length === 0 && warnings.length === 0) warnings.push('Aucune opération trouvée dans le fichier QIF.');
+  return { format: 'qif', entries, warnings };
+}
+
 /* ------------------------------------------------------------------- entrée */
 
 /** Analyse un relevé, format déduit du contenu. */
 export function parseStatement(text: string): StatementParse {
-  return /<OFX>|<STMTTRN>|OFXHEADER/i.test(text.slice(0, 4000))
-    ? parseOfx(text)
-    : parseCsv(text);
+  const head = text.slice(0, 4000);
+  if (/<OFX>|<STMTTRN>|OFXHEADER/i.test(head)) return parseOfx(text);
+  if (/^\s*!Type:/im.test(head) || /^\s*!Account/im.test(head)) return parseQif(text);
+  return parseCsv(text);
 }

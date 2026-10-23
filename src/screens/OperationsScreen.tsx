@@ -6,6 +6,7 @@ import { Layout } from '../components/Layout';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
 import { OperationForm } from '../components/OperationForm';
+import { ExportOperationsModal } from '../components/ExportOperationsModal';
 import { operationService } from '../services/operationService';
 import { forecastService, type ForecastLine } from '../services/forecastService';
 import { backupService } from '../services/backupService';
@@ -48,6 +49,7 @@ export function OperationsScreen({ database }: { database: Database }) {
   const [editing, setEditing] = useState<Operation | null>(null);
   const [duplicating, setDuplicating] = useState<Operation | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Operation | null>(null);
+  const [exporting, setExporting] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const label = monthLabel(anchor.getFullYear(), anchor.getMonth());
@@ -116,6 +118,7 @@ export function OperationsScreen({ database }: { database: Database }) {
       <Act ic="🔍" label="Rechercher" on={() => searchRef.current?.focus()} />
       <div className="act-sep" />
       <Act ic="⬆️" label="Exporter" on={() => backupService.download()} />
+      <Act ic="📤" label="Exporter les opérations" on={() => setExporting(true)} />
       <ImportButton />
     </>
   );
@@ -210,6 +213,11 @@ export function OperationsScreen({ database }: { database: Database }) {
             ` · ${data.forecast.length} prévision(s)`}
         </div>
       </div>
+
+      {exporting && (
+        <ExportOperationsModal dbId={dbId} accounts={accounts} accountId={accountId || undefined}
+          from={data?.from ?? ''} to={data?.to ?? ''} onClose={() => setExporting(false)} />
+      )}
 
       {editing && (
         <Modal title="Modifier l’opération" onClose={() => setEditing(null)} width={620}>

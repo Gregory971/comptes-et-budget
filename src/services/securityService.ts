@@ -162,6 +162,21 @@ export const securityService = {
 
   removePrice: (id: string) => db.securityPrices.delete(id),
 
+  /** Importe un lot de cotations : une par jour, celle du même jour est remplacée. Renvoie le nombre écrit. */
+  async importPrices(dbId: string, securityId: string, entries: { date: Ymd; price: number }[]): Promise<number> {
+    const sec = await db.securities.get(securityId);
+    if (!sec || sec.dbId !== dbId) throw new Error('Titre introuvable.');
+    return db.transaction('rw', db.securityPrices, async () => {
+      const existing = new Map((await db.securityPrices.where('securityId').equals(securityId).toArray()).map(p => [p.date, p.id]));
+      const now = stamp();
+      const rows: SecurityPrice[] = entries.map(e => ({
+        id: existing.get(e.date) ?? uid(), dbId, securityId, date: e.date, price: e.price, updatedAt: now,
+      }));
+      await db.securityPrices.bulkPut(rows);
+      return rows.length;
+    });
+  },
+
   /** Position de chaque titre (non archivé par défaut) au dernier cours connu. */
   async statuses(dbId: string, includeArchived = false): Promise<SecurityStatus[]> {
     const [secs, txs, prices] = await Promise.all([

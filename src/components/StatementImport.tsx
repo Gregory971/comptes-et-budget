@@ -26,7 +26,7 @@ const isEdited = (r: ImportCandidate) =>
   || (!r.payeeId && !!r.payeeName?.trim());
 
 /**
- * Import d'un relevé bancaire (CSV ou OFX).
+ * Import d'un relevé bancaire (CSV, OFX ou QIF).
  *
  * Trois refus délibérés :
  *  · rien n'est écrit avant confirmation — la fenêtre montre chaque ligne,
@@ -105,6 +105,9 @@ export function StatementImport({ dbId, accounts }: { dbId: string; accounts: Ac
       return { ...r, payeeName: name, payeeId: connu?.id };
     }));
 
+  const toggleLink = (key: string) =>
+    setRows(rs => rs.map(r => (r.key === key ? { ...r, linkTransfer: !r.linkTransfer } : r)));
+
   /** Applique la suggestion d'une proposition incertaine : c'est un choix de l'utilisateur. */
   const applySuggestion = (key: string) =>
     setRows(rs => rs.map(r => {
@@ -123,6 +126,7 @@ export function StatementImport({ dbId, accounts }: { dbId: string; accounts: Ac
     try {
       const res = await commitImport(dbId, accountId || accounts[0].id, rows);
       setDone(`${res.imported} opération(s) importée(s), ${res.skipped} écartée(s).`
+        + (res.transfersLinked ? ` ${res.transfersLinked} virement(s) lié(s) à une opération existante.` : '')
         + (res.rulesLearned ? ` ${res.rulesLearned} règle(s) de classement mémorisée(s) ou mise(s) à jour.` : ''));
       setParse(null); setRows([]);
     } catch (e) {
@@ -135,9 +139,9 @@ export function StatementImport({ dbId, accounts }: { dbId: string; accounts: Ac
   return (
     <>
       <button className="btn ghost" onClick={() => ref.current?.click()}>
-        <span aria-hidden="true">📄</span> Importer un relevé (CSV / OFX)
+        <span aria-hidden="true">📄</span> Importer un relevé (CSV / OFX / QIF)
       </button>
-      <input ref={ref} type="file" accept=".csv,.txt,.ofx,.qfx" style={{ display: 'none' }}
+      <input ref={ref} type="file" accept=".csv,.tsv,.txt,.ofx,.qfx,.qif" style={{ display: 'none' }}
         onChange={async e => {
           const f = e.target.files?.[0];
           e.target.value = '';
@@ -225,6 +229,14 @@ export function StatementImport({ dbId, accounts }: { dbId: string; accounts: Ac
                             <span className="muted" style={{ display: 'block', fontSize: 11 }}>
                               ⚠️ déjà saisie le {r.duplicateDate && formatFr(r.duplicateDate)}
                             </span>
+                          )}
+                          {r.transferCandidate && (
+                            <label className="muted" style={{ display: 'block', fontSize: 11, cursor: 'pointer' }}>
+                              <input type="checkbox" checked={!!r.linkTransfer} onChange={() => toggleLink(r.key)}
+                                aria-label={`Lier la ligne du ${formatFr(r.date)} en virement avec ${r.transferCandidate.accountName}`} />
+                              {' '}↔ Virement probable {r.amountCents < 0 ? 'vers' : 'depuis'} « {r.transferCandidate.accountName} »
+                              {' '}(opération du {formatFr(r.transferCandidate.date)}) : lier les deux
+                            </label>
                           )}
                         </td>
                         <td>

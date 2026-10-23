@@ -25,8 +25,8 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
 4. (faite, hors import de cotations) Titres et placements (achat, vente, dividendes, frais,
    plus-values latentes et réalisées, cotations saisies). L'import de cotations par fichier
    viendra avec la phase 5.
-5. Échanges : export CSV / Excel / QIF / OFX ; import QIF, profils d'import mémorisés,
-   détection automatique des virements.
+5. (faite) Échanges : export CSV / Excel / QIF / OFX ; import QIF et de cotations ; détection
+   des virements. Profils d'import mémorisés écartés (format déduit du contenu).
 6. Maintenance : fusion de catégories et de tiers, épuration des tiers, remplacement en masse,
    suppression en masse, archivage par exercice.
 7. Tâches / notes / rappels, recherche globale, documents liés aux opérations.
