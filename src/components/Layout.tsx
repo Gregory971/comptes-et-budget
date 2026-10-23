@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useStore, type Screen } from '../store/useStore';
 import { useAuth } from '../store/useAuth';
 import { useActiveDatabase, useBases } from '../hooks/useData';
@@ -6,6 +6,7 @@ import { ImportButton } from './ImportButton';
 import { ExportButton } from './ExportButton';
 import { Modal } from './Modal';
 import { BudgetNavBadge } from './BudgetAlerts';
+import { GlobalSearch } from './GlobalSearch';
 import type { Profile } from '../types';
 
 export { formatEur as eur, formatNum as eurn } from '../utils/money';
@@ -49,6 +50,16 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
   const { screen, setScreen } = useStore();
   const { database } = useActiveDatabase();
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  // Ctrl+K (⌘K sur Mac) ouvre la recherche depuis n'importe quel écran.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearching(true); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   const guarded = useAuth(s => s.guarded);
   const lock = useAuth(s => s.lock);
   const isPro = database?.profile === 'pro';
@@ -80,6 +91,12 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
           {actions ?? <DefaultActions />}
         </div>
         <div className="side-foot">
+          {database && (
+            <button type="button" className="lockbtn" onClick={() => setSearching(true)}
+              title="Rechercher dans toute la base (Ctrl+K)">
+              <span aria-hidden="true">🔍</span> Rechercher <small className="muted">Ctrl+K</small>
+            </button>
+          )}
           {guarded && (
             <button type="button" className="lockbtn" onClick={lock}
               title="Verrouiller l’application : les identifiants seront redemandés">
@@ -97,6 +114,7 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
       </aside>
       <section className="content">{children}</section>
       {showSwitcher && <BaseSwitcher onClose={() => setShowSwitcher(false)} />}
+      {searching && database && <GlobalSearch dbId={database.id} onClose={() => setSearching(false)} />}
     </div>
   );
 }

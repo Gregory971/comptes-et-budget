@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useStore } from '../store/useStore';
 import { useAccounts, useRates, useReferentials } from '../hooks/useData';
@@ -12,7 +12,7 @@ import { forecastService, type ForecastLine } from '../services/forecastService'
 import { backupService } from '../services/backupService';
 import { formatNum, formatEur } from '../utils/money';
 import { convert } from '../services/currencyService';
-import { formatFr, monthLabel, today } from '../utils/date';
+import { formatFr, fromYmd, monthLabel, today } from '../utils/date';
 import { isSplit, operationCategoryName, splitSummary } from '../utils/splits';
 import type { Database, Operation } from '../types';
 
@@ -43,8 +43,11 @@ export function OperationsScreen({ database }: { database: Database }) {
 
   const [mode, setMode] = useState<Mode>('reel');
   const [accountId, setAccountId] = useState('');
-  const [anchor, setAnchor] = useState(() => new Date());
-  const [search, setSearch] = useState('');
+  // Arrivée depuis la recherche globale : texte déjà saisi et mois de l'opération trouvée.
+  const [pending] = useState(() => useStore.getState().pendingFocus);
+  useEffect(() => { if (pending) useStore.getState().setPendingFocus(undefined); }, [pending]);
+  const [anchor, setAnchor] = useState(() => (pending?.date ? fromYmd(pending.date) : new Date()));
+  const [search, setSearch] = useState(pending?.search ?? '');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Operation | null>(null);
   const [duplicating, setDuplicating] = useState<Operation | null>(null);
@@ -228,6 +231,7 @@ export function OperationsScreen({ database }: { database: Database }) {
               paymentMethodId: editing.paymentMethodId, label: editing.label,
               reference: editing.reference, note: editing.note,
               assetId: editing.assetId, projectId: editing.projectId, splits: editing.splits,
+              documents: editing.documents,
             }}
             onCancel={() => setEditing(null)}
             onSubmit={async (input) => { await operationService.update(editing.id, input); setEditing(null); }} />
@@ -244,6 +248,7 @@ export function OperationsScreen({ database }: { database: Database }) {
               paymentMethodId: duplicating.paymentMethodId, label: duplicating.label,
               reference: duplicating.reference, note: duplicating.note,
               assetId: duplicating.assetId, projectId: duplicating.projectId, splits: duplicating.splits,
+              documents: duplicating.documents,
             }}
             onCancel={() => setDuplicating(null)}
             onSubmit={async (input) => { await operationService.create({ dbId, ...input }); setDuplicating(null); }} />
@@ -299,6 +304,11 @@ function RealRow({ o, solde, ref_, currency, selected, onSelect, onEdit, onDelet
         <span>{isTransfer ? 'Virement' : split ? operationCategoryName(o, ref_.catName) : c?.name ?? 'Non catégorisé'}
           {split && <span className="muted" style={{ fontSize: 11, display: 'block' }}>{splitSummary(o, ref_.catName)}</span>}
           {o.label && <span className="muted" style={{ fontSize: 11, display: 'block' }}>{o.label}</span>}
+          {!!o.documents?.length && (
+            <span className="muted" style={{ fontSize: 11, display: 'block' }} title={o.documents.map(d => d.label).join(', ')}>
+              <span aria-hidden="true">📎</span> {o.documents.length} document{o.documents.length > 1 ? 's' : ''}
+            </span>
+          )}
           {o.note && <span className="muted" style={{ fontSize: 11, display: 'block', fontStyle: 'italic' }}>{o.note}</span>}
         </span></div></td>
       <td className={'num ' + (o.amountCents < 0 ? 'neg' : 'pos')}>{formatNum(o.amountCents)}

@@ -1,6 +1,7 @@
 import { db, stamp } from './db';
 import { operationService } from './operationService';
-import type { Operation, Schedule, Ymd } from '../types';
+import { replacePathPrefix, validateDocument } from '../utils/documents';
+import type { DocumentLink, Operation, Schedule, Ymd } from '../types';
 
 /**
  * Opérations de maintenance sur la base : fusion, épuration, remplacement et
@@ -284,4 +285,49 @@ export async function deleteOperations(spec: DeleteSpec): Promise<number> {
     count++;
   }
   return count;
+}
+
+/* ---------------------------------------------------- liens de documents */
+
+/**
+ * Corrige en masse les liens de documents après un déménagement de dossier ou de
+ * disque : le début `from` du chemin devient `to`. Les deux séparateurs et la casse
+ * sont équivalents (usage de Windows) ; seuls les chemins qui commencent vraiment par
+ * `from` — jusqu'à une frontière de dossier — sont touchés. Les liens https ne le sont jamais.
+ */
+export async function previewDocumentPrefix(dbId: string, from: string): Promise<{ documents: number; operations: number }> {
+  let documents = 0, operations = 0;
+  for (const o of await db.operations.where('dbId').equals(dbId).toArray()) {
+    const n = (o.documents ?? []).filter(d => replacePathPrefix(d.path, from, 'X') !== null).length;
+    if (n > 0) { documents += n; operations++; }
+  }
+  return { documents, operations };
+}
+
+export async function replaceDocumentPrefix(dbId: string, from: string, to: string): Promise<{ documents: number; operations: number }> {
+  if (!from.trim()) throw new Error('Indiquez le début du chemin à remplacer.');
+  if (!to.trim()) throw new Error('Indiquez le nouveau début de chemin.');
+  const changes: { id: string; documents: DocumentLink[] }[] = [];
+  let documents = 0;
+  for (const o of await db.operations.where('dbId').equals(dbId).toArray()) {
+    let touched = false;
+    const next = (o.documents ?? []).map(d => {
+      const path = replacePathPrefix(d.path, from, to);
+      if (path === null) return d;
+      touched = true; documents++;
+      return { ...d, path };
+    });
+    if (!touched) continue;
+    // Tout contrôler AVANT d'écrire : un nouveau préfixe invalide ne doit rien abîmer.
+    for (const d of next) {
+      const problem = validateDocument(d);
+      if (problem) throw new Error(`Le nouveau chemin « ${d.path} » est refusé : ${problem}`);
+    }
+    changes.push({ id: o.id, documents: next });
+  }
+  const now = stamp();
+  await db.transaction('rw', db.operations, async () => {
+    for (const c of changes) await db.operations.update(c.id, { documents: c.documents, updatedAt: now });
+  });
+  return { documents, operations: changes.length };
 }

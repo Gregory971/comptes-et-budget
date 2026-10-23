@@ -13,10 +13,11 @@
 //    navigateur refusées par défaut ; la CSP de la page (connect-src 'none')
 //    s'applique comme sur le site publié.
 
-const { app, BrowserWindow, Menu, net, protocol, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, session, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { refusalForPath } = require('./openPolicy.cjs');
 
 const SCHEME = 'cb';
 const HOST = 'app';
@@ -72,6 +73,39 @@ function installerProtocole() {
   });
 }
 
+// ---- Documents liés : choisir un fichier, l'ouvrir ----
+//
+// Deux actions seulement, et chacune revérifie son appelant : un message IPC ne vaut
+// que s'il vient de NOTRE page (cb://app), jamais d'une page chargée ailleurs.
+
+function appelantAutorise(evenement) {
+  const url = evenement.senderFrame && evenement.senderFrame.url;
+  return typeof url === 'string' && url.startsWith(`${SCHEME}://${HOST}/`);
+}
+
+function installerPontDocuments() {
+  ipcMain.handle('cb:pick-file', async (evenement) => {
+    if (!appelantAutorise(evenement)) return null;
+    const r = await dialog.showOpenDialog(fenetre ?? undefined, {
+      title: 'Associer un document', properties: ['openFile'],
+    });
+    return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0];
+  });
+
+  ipcMain.handle('cb:open-path', async (evenement, chemin) => {
+    if (!appelantAutorise(evenement)) return { ok: false, error: 'Appel refusé.' };
+    const refus = refusalForPath(chemin);
+    if (refus) return { ok: false, error: refus };
+    try {
+      if (!(await fs.promises.stat(chemin)).isFile()) return { ok: false, error: 'Ce chemin n’est pas un fichier.' };
+    } catch {
+      return { ok: false, error: 'Fichier introuvable : il a peut-être été déplacé ou renommé.' };
+    }
+    const erreur = await shell.openPath(chemin);   // chaîne vide quand tout va bien
+    return erreur ? { ok: false, error: erreur } : { ok: true };
+  });
+}
+
 function menuFrancais() {
   const modele = [
     {
@@ -118,6 +152,7 @@ function creerFenetre() {
     backgroundColor: '#ffffff',
     show: false,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -150,6 +185,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   installerProtocole();
+  installerPontDocuments();
 
   // Aucune permission accordée à la page (caméra, micro, position,
   // notifications…), hormis l'accès aux fichiers que l'utilisateur désigne lui-même

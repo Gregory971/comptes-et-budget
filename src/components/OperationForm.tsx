@@ -4,9 +4,10 @@ import { payeeService } from '../services/referentialService';
 import { MoneyInput } from './MoneyInput';
 import { PayeeField } from './PayeeField';
 import { SplitEditor, newSplitRow, type SplitRow } from './SplitEditor';
+import { DocumentsField } from './DocumentsField';
 import { validateSplits } from '../utils/splits';
 import { today, type Ymd } from '../utils/date';
-import type { Kind, Cents, Account, OperationSplit } from '../types';
+import type { Kind, Cents, Account, DocumentLink, OperationSplit } from '../types';
 import type { OperationInput } from '../services/operationService';
 
 export interface OpFormInitial {
@@ -16,6 +17,7 @@ export interface OpFormInitial {
   assetId?: string; projectId?: string;
   /** Ventilation existante (montants signés, comme stockés). */
   splits?: OperationSplit[];
+  documents?: DocumentLink[];
 }
 
 /** Formulaire réutilisable : ajout, édition, duplication d'une opération. */
@@ -45,6 +47,7 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
   const [label, setLabel] = useState(initial?.label ?? '');
   const [reference, setReference] = useState(initial?.reference ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
+  const [documents, setDocuments] = useState<DocumentLink[]>(initial?.documents ?? []);
   // Un même sélecteur pour les deux rattachements possibles, préfixé a: ou p:.
   const [linkId, setLinkId] = useState(
     initial?.assetId ? `a:${initial.assetId}` : initial?.projectId ? `p:${initial.projectId}` : '');
@@ -91,6 +94,8 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
         accountId, date, amountCents, kind,
         payeeId, categoryId: splitting ? undefined : categoryId || undefined,
         splits,
+        // Toujours transmis : une liste vidée doit effacer les documents d'une opération modifiée.
+        documents: documents.length ? documents : undefined,
         paymentMethodId: paymentMethodId || undefined,
         label: label.trim() || undefined,
         reference: reference.trim() || undefined,
@@ -189,6 +194,8 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
           <input id="op-note" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
             placeholder="Note libre" /></div>
       </div>
+
+      <DocumentsField docs={documents} onChange={setDocuments} />
 
       {error && <p role="alert" style={{ color: 'var(--red)', margin: '4px 0 10px' }}>{error}</p>}
 

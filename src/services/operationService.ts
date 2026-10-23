@@ -1,6 +1,7 @@
 import { db, uid, stamp } from './db';
 import { touchesCategory, validateSplits } from '../utils/splits';
-import type { Operation, OperationSplit, Kind, Ymd, Cents } from '../types';
+import { normalizeDocuments } from '../utils/documents';
+import type { DocumentLink, Operation, OperationSplit, Kind, Ymd, Cents } from '../types';
 
 export interface OperationInput {
   dbId: string; accountId: string; date: Ymd; amountCents: Cents; kind: Kind;
@@ -15,6 +16,8 @@ export interface OperationInput {
    * somme égale le montant. `categoryId` est alors ignoré.
    */
   splits?: OperationSplit[];
+  /** Documents liés : chemins ou liens, au plus dix. */
+  documents?: DocumentLink[];
 }
 
 /**
@@ -59,6 +62,7 @@ export const operationService = {
       id: uid(), checked: false, createdAt: now, updatedAt: now,
       ...input, amountCents, splits,
       categoryId: splits ? undefined : input.categoryId,
+      documents: normalizeDocuments(input.documents),
     };
     await db.operations.add(op);
     return op;
@@ -78,8 +82,9 @@ export const operationService = {
       throw new Error('Le montant ne correspond plus à la ventilation : modifiez la ventilation en même temps.');
     }
     const splits = splitsGiven ? normalizeSplits(kind, amountCents, patch.splits) : cur.splits;
+    const documents = 'documents' in patch ? normalizeDocuments(patch.documents) : cur.documents;
     await db.operations.update(id, {
-      ...patch, kind, amountCents, splits,
+      ...patch, kind, amountCents, splits, documents,
       categoryId: splits ? undefined : ('categoryId' in patch ? patch.categoryId : cur.categoryId),
       updatedAt: stamp(),
     });

@@ -23,6 +23,8 @@
     },
     "files": [
       "main.cjs",
+      "preload.cjs",
+      "openPolicy.cjs",
       "app-dist/**/*",
       "package.json"
     ],

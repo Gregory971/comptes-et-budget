@@ -2,7 +2,7 @@ import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   Database, Account, Payee, CategoryGroup, Category,
   PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project, Setting,
-  CategorizationRule, Currency, Security, SecurityTx, SecurityPrice,
+  CategorizationRule, Currency, Security, SecurityTx, SecurityPrice, Task,
 } from '../types';
 import { normalizeYmd, today } from '../utils/date';
 import { toCents } from '../utils/money';
@@ -31,6 +31,8 @@ export class AppDB extends Dexie {
   securities!: Table<Security, string>;
   securityTxs!: Table<SecurityTx, string>;
   securityPrices!: Table<SecurityPrice, string>;
+  /** Tâches, rappels et notes (inclus dans la sauvegarde). */
+  tasks!: Table<Task, string>;
   /** Réglages propres à l'appareil : jamais exportés dans la sauvegarde. */
   settings!: Table<Setting, string>;
 
@@ -93,6 +95,8 @@ export class AppDB extends Dexie {
       securityTxs: 'id, dbId, securityId, [securityId+date]',
       securityPrices: 'id, dbId, securityId, [securityId+date]',
     });
+    // v11 : tâches, rappels et notes. Ajout de table, sans conversion.
+    this.version(11).stores({ tasks: 'id, dbId' });
   }
 }
 

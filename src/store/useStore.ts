@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { dbService } from '../services/dbService';
-import type { Profile } from '../types';
+import type { Profile, Ymd } from '../types';
 
 export type Screen =
   | 'accueil' | 'comptes' | 'operations' | 'echeances'
@@ -16,9 +16,15 @@ export type Screen =
  * sont désormais lues par useLiveQuery (dexie-react-hooks), qui ne rafraîchit
  * qu'en cas de changement réel des tables observées.
  */
+/** Recherche à ouvrir dans l'écran Opérations : texte déjà saisi et mois à afficher. */
+export interface PendingFocus { search: string; date?: Ymd }
+
 interface UiState {
   activeDbId?: string;
   screen: Screen;
+  /** Posé par la recherche globale, consommé (et effacé) par l'écran Opérations à son ouverture. */
+  pendingFocus?: PendingFocus;
+  setPendingFocus: (f?: PendingFocus) => void;
   setScreen: (s: Screen) => void;
   setActiveDbId: (id: string) => void;
   createBase: (name: string, profile?: Profile) => Promise<string>;
@@ -32,6 +38,8 @@ export const useStore = create<UiState>((set) => ({
   screen: 'accueil',
 
   setScreen: (screen) => set({ screen }),
+
+  setPendingFocus: (pendingFocus) => set({ pendingFocus }),
 
   setActiveDbId: (id) => { dbService.setActive(id); set({ activeDbId: id }); },
 

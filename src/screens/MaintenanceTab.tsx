@@ -5,7 +5,7 @@ import { useAccounts, useReferentials } from '../hooks/useData';
 import { operationService } from '../services/operationService';
 import {
   deleteOperations, mergeCategories, mergePayees, previewReplace, purgeUnusedPayees, replaceInOperations,
-  selectForDeletion, unusedPayees, type ReplaceField,
+  previewDocumentPrefix, replaceDocumentPrefix, selectForDeletion, unusedPayees, type ReplaceField,
 } from '../services/maintenanceService';
 import { addYears, today, formatFr, type Ymd } from '../utils/date';
 import type { Database } from '../types';
@@ -29,6 +29,7 @@ export function MaintenanceTab({ database }: { database: Database }) {
       <MergeCard dbId={database.id} />
       <PurgeCard dbId={database.id} />
       <ReplaceCard dbId={database.id} />
+      <LinksCard dbId={database.id} />
       <DeleteCard dbId={database.id} />
     </>
   );
@@ -303,6 +304,52 @@ function DeleteCard({ dbId }: { dbId: string }) {
         <button className="btn" disabled={count === 0 || typed.trim() !== MOT} onClick={run}>Supprimer</button>
       </div>
       <Result msg={msg} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------- liens de documents */
+
+function LinksCard({ dbId }: { dbId: string }) {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [confirm, setConfirm] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const preview = useLiveQuery(async () => (from.trim() ? previewDocumentPrefix(dbId, from) : { documents: 0, operations: 0 }),
+    [dbId, from], { documents: 0, operations: 0 });
+
+  async function run() {
+    try {
+      const r = await replaceDocumentPrefix(dbId, from, to);
+      setMsg({ ok: true, text: `${plural(r.documents, 'lien corrigé', 'liens corrigés')} dans ${plural(r.operations, 'opération', 'opérations')}.` });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    }
+  }
+
+  return (
+    <div className="card">
+      <strong>Organiser les liens des documents</strong>
+      <p className="muted" style={{ fontSize: 13, margin: '4px 0 8px' }}>
+        Les documents liés aux opérations sont retrouvés par leur chemin. Si vous avez déplacé un dossier ou changé de disque,
+        remplacez ici le début du chemin. Les liens https ne sont jamais modifiés.
+      </p>
+      <div className="grid two">
+        <div className="field"><label htmlFor="lk-from">Début actuel du chemin</label>
+          <input id="lk-from" value={from} placeholder="C:\MesDocuments" onChange={e => { setFrom(e.target.value); setMsg(null); }} /></div>
+        <div className="field"><label htmlFor="lk-to">Nouveau début</label>
+          <input id="lk-to" value={to} placeholder="D:\Archives\Compta" onChange={e => { setTo(e.target.value); setMsg(null); }} /></div>
+      </div>
+      <p role="status" className="muted" style={{ fontSize: 13, margin: '4px 0' }}>
+        {from.trim() ? `${plural(preview?.documents ?? 0, 'lien sera corrigé', 'liens seront corrigés')} dans ${plural(preview?.operations ?? 0, 'opération', 'opérations')}.` : 'Saisissez le début du chemin à remplacer.'}
+      </p>
+      <button className="btn" disabled={!from.trim() || !to.trim() || (preview?.documents ?? 0) === 0} onClick={() => setConfirm(true)}>Corriger les liens</button>
+      <Result msg={msg} />
+      {confirm && (
+        <ConfirmDialog title="Corriger les liens" confirmLabel="Corriger"
+          message={`Remplacer le début « ${from.trim()} » par « ${to.trim()} » dans ${plural(preview?.documents ?? 0, 'lien', 'liens')} ?`}
+          onConfirm={run} onClose={() => setConfirm(false)} />
+      )}
     </div>
   );
 }

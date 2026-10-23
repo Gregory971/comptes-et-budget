@@ -6,7 +6,7 @@ import { normalizeYmd, today, toYmd } from '../utils/date';
 import type {
   Database, Account, Payee, CategoryGroup, Category, PaymentMethod,
   Operation, Preferences, Schedule, Budget, Asset, Project, CategorizationRule, Currency,
-  Security, SecurityTx, SecurityPrice,
+  Security, SecurityTx, SecurityPrice, Task,
 } from '../types';
 
 export const BACKUP_VERSION = 3;
@@ -40,6 +40,8 @@ export interface Backup {
   securities?: Security[];
   securityTxs?: SecurityTx[];
   securityPrices?: SecurityPrice[];
+  /** Tâches, rappels et notes (absents d'un fichier antérieur). */
+  tasks?: Task[];
 }
 
 type TableName = Exclude<keyof Backup, 'format' | 'version' | 'schemaVersion' | 'exportedAt' | 'database'>;
@@ -66,6 +68,7 @@ const TABLE_MAP = {
   securities: () => db.securities,
   securityTxs: () => db.securityTxs,
   securityPrices: () => db.securityPrices,
+  tasks: () => db.tasks,
 } as const satisfies Record<TableName, () => { name: string }>;
 
 const TABLES = Object.keys(TABLE_MAP) as TableName[];
@@ -78,7 +81,7 @@ const TABLES = Object.keys(TABLE_MAP) as TableName[];
  * restaure un fichier d'avant leur existence). Un tableau vide, lui, vide bien.
  */
 const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>([
-  'categorizationRules', 'currencies', 'securities', 'securityTxs', 'securityPrices',
+  'categorizationRules', 'currencies', 'securities', 'securityTxs', 'securityPrices', 'tasks',
 ]);
 
 type AnyRow = { id: string; dbId: string; updatedAt?: string };
@@ -373,5 +376,6 @@ export function upgradeBackup(b: Backup): Backup {
     ...(b.securities ? { securities: b.securities.map(r => row({ ...r })) } : {}),
     ...(b.securityTxs ? { securityTxs: b.securityTxs.map(r => row({ ...r })) } : {}),
     ...(b.securityPrices ? { securityPrices: b.securityPrices.map(r => row({ ...r })) } : {}),
+    ...(b.tasks ? { tasks: b.tasks.map(r => row({ ...r })) } : {}),
   };
 }

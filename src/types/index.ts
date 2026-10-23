@@ -87,6 +87,22 @@ export interface Account extends Tracked {
   currency?: string;
 }
 
+export type TaskKind = 'tache' | 'note' | 'rappel';
+
+/**
+ * Pense-bête de la base : une tâche à faire, un rappel daté ou une simple note.
+ * Une note n'a ni échéance ni état « fait ». Texte limité à 200 caractères.
+ */
+export interface Task extends Tracked {
+  id: string; dbId: string;
+  kind: TaskKind;
+  text: string;
+  /** Date limite ou date du rappel. */
+  due?: Ymd;
+  done: boolean;
+  createdAt: string;
+}
+
 /** Titre financier suivi dans « Placements » (action, ETF, fonds…). */
 export interface Security extends Tracked {
   id: string; dbId: string;
@@ -155,6 +171,12 @@ export interface PaymentMethod extends Tracked {
   id: string; dbId: string; name: string; archived: boolean;
 }
 
+/** Document lié à une opération : un nom et un chemin de fichier ou un lien https (jamais le fichier). */
+export interface DocumentLink {
+  label: string;
+  path: string;
+}
+
 /** Part d'une ventilation multiple : une catégorie et son montant, signé comme l'opération. */
 export interface OperationSplit {
   categoryId?: string;
@@ -176,6 +198,8 @@ export interface Operation extends Tracked {
    * présente, `categoryId` est vide. Voir src/utils/splits.ts.
    */
   splits?: OperationSplit[];
+  /** Documents liés (factures, tickets…) : chemins ou liens, voir src/utils/documents.ts. */
+  documents?: DocumentLink[];
   paymentMethodId?: string;
   label?: string;
   reference?: string;      // n° de chèque, référence de virement…

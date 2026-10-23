@@ -29,7 +29,8 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
    des virements. Profils d'import mémorisés écartés (format déduit du contenu).
 6. (faite, hors archivage) Maintenance : fusion de catégories et de tiers, épuration des tiers,
    remplacement en masse, suppression en masse. Archivage par exercice écarté (voir CHANGELOG).
-7. Tâches / notes / rappels, recherche globale, documents liés aux opérations.
+7. (faite) Tâches / notes / rappels, recherche globale, documents liés aux opérations (pas
+   encore aux biens et projets).
 8. Budget avancé (prévision annuelle, périodicité, initialisation d'après l'année précédente),
    graphiques par tiers, projet, évolution des comptes.
 9. Finitions bureau : sauvegarde automatique native dans un dossier, ouverture d'un `.cbjson`

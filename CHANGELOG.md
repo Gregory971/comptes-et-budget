@@ -52,6 +52,54 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   plutôt que de la rendre fausse. Un virement ne se ventile pas.
 - Données : champ facultatif `splits` sur les opérations, aucune migration.
 
+### Tâches, notes et rappels
+
+- Carte « Tâches, notes, rappels » sur le tableau de bord : une tâche (avec date
+  limite facultative), un rappel (date obligatoire) ou une note (ni date ni état).
+  Texte limité à 200 caractères ; ajout par Entrée, case à cocher, modification sur
+  place, suppression, et « supprimer les terminées » d'un clic.
+- Les retards (date dépassée, pas encore fait) sont signalés par une icône **et** par
+  du texte pour les lecteurs d'écran, pas seulement par la couleur ; le compteur
+  « n à faire · n en retard » est annoncé. Tri : en retard, à venir, sans date, notes,
+  terminées.
+- Données : table `tasks` (schéma local **v11**, ajout sans conversion), incluse dans la
+  sauvegarde ; une sauvegarde d'avant les tâches ne les vide pas.
+
+### Recherche globale
+
+- Bouton « Rechercher » de la barre latérale ou **Ctrl+K** (⌘K sur Mac), depuis
+  n'importe quel écran. Une seule saisie cherche dans les opérations (libellé,
+  commentaire, référence, tiers, catégories — y compris celles d'une ventilation —,
+  compte), les comptes, tiers, catégories, titres, tâches et notes, échéances, biens et
+  projets. Insensible à la casse et aux accents ; plusieurs mots se cumulent (ET).
+- Un mot qui se lit comme un **montant** (« 42,50 ») ou une **date** (« 25/10/2026 »)
+  est comparé aux montants et aux dates : c'est ce qu'on cherche en relisant un relevé.
+- Résultats groupés par type, filtre « Dans », 25 résultats par type. Un résultat
+  d'opération ouvre l'écran Opérations **au bon mois, déjà filtré**. Une frappe plus
+  récente ignore la réponse d'une frappe périmée.
+
+### Documents liés aux opérations
+
+- Une opération peut porter jusqu'à dix documents : un nom et un **chemin de fichier ou
+  un lien https** — jamais le fichier lui-même, pour garder la base et les sauvegardes
+  légères. Champ « Documents liés » du formulaire, pastille « 📎 n documents » dans la
+  liste. Dans l'édition bureau, « Choisir un fichier… » ouvre la boîte de dialogue du
+  système ; dans le navigateur, qui ne révèle pas les chemins, on saisit le chemin complet.
+- **Ouverture** : un lien https s'ouvre dans un nouvel onglet (sans transmettre la page
+  d'origine) ; un fichier local ne s'ouvre que dans l'édition bureau. Sécurité : le
+  processus principal n'ouvre que **des fichiers ordinaires qui existent**, par un chemin
+  complet — jamais un programme ou un script (`.exe`, `.bat`, `.ps1`, `.lnk`, `.js`,
+  `.msi`…), un chemin relatif, une remontée `..`, un flux NTFS caché (`a.pdf:x.exe`) ou un
+  caractère de contrôle ; il vérifie aussi que le message vient bien de notre page. Les
+  schémas `javascript:`, `data:`, `file:` et `http:` sont refusés à la saisie. Essayé dans
+  l'application Electron réelle : chaque refus est bien renvoyé, la page n'a pas accès à Node.
+- **Préférences → Maintenance → Organiser les liens** : remplace le début des chemins
+  après un déménagement de dossier ou de disque (séparateurs et casse équivalents, coupure
+  seulement à une frontière de dossier, liens https jamais touchés). Aperçu chiffré, et
+  rien n'est écrit si un seul nouveau chemin est invalide.
+- Non repris : les documents des biens et des projets (opérations seulement).
+- Données : champ facultatif `documents` sur les opérations, aucune migration.
+
 ### Maintenance (Préférences → Maintenance)
 
 - **Fusionner des catégories ou des tiers** : l'élément absorbé est remplacé partout

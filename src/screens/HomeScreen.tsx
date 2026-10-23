@@ -6,6 +6,7 @@ import { ACCOUNT_TYPE_LABEL, isCash } from '../services/accountService';
 import { periodRange, reportService } from '../services/reportService';
 import { scheduleService } from '../services/scheduleService';
 import { BudgetAlertBanner } from '../components/BudgetAlerts';
+import { TasksCard } from '../components/TasksCard';
 import { formatEur, formatMoney } from '../utils/money';
 import { convert } from '../services/currencyService';
 import { formatFr, today } from '../utils/date';
@@ -144,6 +145,8 @@ export function HomeScreen({ database }: { database: Database }) {
           );
         })}
       </div>
+
+      <TasksCard dbId={dbId} />
     </>
   );
 }
