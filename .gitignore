@@ -25,3 +25,9 @@ coverage/
 
 # Worktrees des agents
 .claude/worktrees/
+
+# Édition bureau (produits de construction)
+release/
+dist-desktop/
+desktop/node_modules/
+desktop/app-dist/

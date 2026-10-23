@@ -1,0 +1,65 @@
+{
+  "name": "comptes-budget-bureau",
+  "productName": "Comptes et Budget",
+  "version": "2.8.0",
+  "description": "Comptes et Budget — édition bureau (Windows)",
+  "author": "Grégory",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "app": "electron .",
+    "prepare-app": "node scripts/prepare.cjs",
+    "dist": "npm run prepare-app && electron-builder --win nsis --x64 --arm64",
+    "dist:x64": "npm run prepare-app && electron-builder --win nsis --x64",
+    "dist:arm64": "npm run prepare-app && electron-builder --win nsis --arm64"
+  },
+  "build": {
+    "appId": "fr.comptes-budget.bureau",
+    "productName": "Comptes et Budget",
+    "copyright": "Comptes et Budget",
+    "directories": {
+      "output": "../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "app-dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis"
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Comptes-et-Budget-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Comptes et Budget",
+      "installerLanguages": [
+        "fr_FR"
+      ],
+      "language": "1036",
+      "deleteAppDataOnUninstall": false
+    },
+    "fileAssociations": [
+      {
+        "ext": "cbjson",
+        "name": "Sauvegarde Comptes et Budget",
+        "description": "Sauvegarde Comptes et Budget",
+        "role": "Editor"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

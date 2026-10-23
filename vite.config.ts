@@ -45,6 +45,10 @@ const cspPlugin = (single: boolean): Plugin => ({
  */
 export default defineConfig(({ mode }) => {
   const single = mode === 'single';
+  // Édition bureau (Electron) : fichiers séparés servis par le protocole cb://,
+  // sans PWA — l'installeur tient lieu d'installation et de mise à jour — et sans
+  // la passerelle OneDrive, dont l'URI de redirection est celle du site publié.
+  const desktop = mode === 'desktop';
   // Chemin de publication : relatif par défaut (ouverture directe du fichier),
   // absolu pour GitHub Pages, où le site est servi depuis un sous-répertoire
   // (/comptes-et-budget/). Le service worker exige un chemin absolu pour établir
@@ -54,13 +58,13 @@ export default defineConfig(({ mode }) => {
     base,
     // Le module virtuel `virtual:pwa-register` n'existe que si vite-plugin-pwa
     // est chargé, donc pas dans le fichier autonome : on lui substitue un module vide.
-    resolve: single
+    resolve: single || desktop
       ? { alias: { 'virtual:pwa-register': resolve(__dirname, 'src/pwa-stub.ts') } }
       : {},
     plugins: [
       react(),
       cspPlugin(single),
-      ...(single ? [viteSingleFile()] : [VitePWA({
+      ...(single ? [viteSingleFile()] : desktop ? [] : [VitePWA({
         // « prompt » : la nouvelle version attend, et l'application l'annonce
         // (src/components/UpdateNotice.tsx) au lieu de s'activer en silence.
         registerType: 'prompt',
@@ -88,7 +92,7 @@ export default defineConfig(({ mode }) => {
       })]),
     ],
     build: {
-      outDir: single ? 'dist-single' : 'dist',
+      outDir: single ? 'dist-single' : desktop ? 'dist-desktop' : 'dist',
       target: 'es2020',
       // Fichier autonome : les polices doivent être incorporées en base64, sans
       // quoi elles seraient introuvables une fois le fichier ouvert seul en
@@ -99,10 +103,12 @@ export default defineConfig(({ mode }) => {
           // Deux pages : l'application et la passerelle OneDrive. Le fichier
           // autonome n'en porte qu'une — ouvert en file://, il ne peut de toute
           // façon pas servir d'URI de redirection OAuth.
-          input: {
-            main: resolve(__dirname, 'index.html'),
-            onedrive: resolve(__dirname, 'onedrive.html'),
-          },
+          input: desktop
+            ? { main: resolve(__dirname, 'index.html') }
+            : {
+              main: resolve(__dirname, 'index.html'),
+              onedrive: resolve(__dirname, 'onedrive.html'),
+            },
           output: {
             // Le noyau React change rarement : le séparer améliore la mise en
             // cache entre deux versions de l'application.
