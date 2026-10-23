@@ -85,9 +85,13 @@ describe('application', () => {
     render(<App />);
     await waitFor(() => expect(screen.getAllByText('Bilans').length).toBeGreaterThan(0));
     await waitFor(() => {
-      // Le virement ne doit apparaître ni en recette ni en dépense.
-      const cards = document.querySelectorAll('.card');
-      const texte = Array.from(cards).map(c => c.textContent ?? '').join(' ')
+      // Le virement ne doit apparaître ni en recette ni en dépense : on ne regarde que les
+      // cartes de totaux. Les cartes d'évolution des soldes, elles, montrent légitimement
+      // des soldes de comptes (« 5 100,00 € » contient « 100,00 € »).
+      const cards = Array.from(document.querySelectorAll('.card'))
+        .filter(c => /^(Recettes|Dépenses|Solde de la période)/.test(c.textContent ?? ''));
+      expect(cards.length).toBeGreaterThanOrEqual(3);
+      const texte = cards.map(c => c.textContent ?? '').join(' ')
         .replace(/[\u00A0\u202F]/g, ' ');
       expect(texte).toContain('250,50');
       expect(texte).not.toContain('100,00 €');

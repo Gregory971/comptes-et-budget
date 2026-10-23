@@ -4,6 +4,7 @@ import { MoneyInput } from '../components/MoneyInput';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { assetService, projectService, type ProjectStatus } from '../services/patrimoineService';
 import { operationService } from '../services/operationService';
+import { securityService } from '../services/securityService';
 import { formatEur, type Cents } from '../utils/money';
 import { formatFr, type Ymd } from '../utils/date';
 import { hueOf } from '../utils/hue';
@@ -49,7 +50,9 @@ export function BiensScreen({ database }: { database: Database }) {
   const [removeAsset, setRemoveAsset] = useState<Asset | null>(null);
   const [removeProject, setRemoveProject] = useState<Project | null>(null);
 
-  const patrimoine = assets.reduce((s, a) => s + a.valueCents, 0);
+  // La valeur du portefeuille de titres (écran Placements) fait partie du patrimoine.
+  const portefeuille = useLiveQuery(async () => (await securityService.totals(dbId)).valueCents, [dbId], 0) ?? 0;
+  const patrimoine = assets.reduce((s, a) => s + a.valueCents, 0) + portefeuille;
 
   // Répartition par type de bien, reprise de la barre segmentée de la maquette.
   // Les types étant libres, on agrège ce qui existe plutôt qu'une liste figée.
@@ -62,6 +65,10 @@ export function BiensScreen({ database }: { database: Database }) {
         label: ASSET_LABEL[type], icon: ASSET_ICON[type], valueCents,
         pct: patrimoine ? (valueCents / patrimoine) * 100 : 0,
       }))
+      .concat(portefeuille > 0 ? [{
+        label: 'Portefeuille de titres', icon: '💹', valueCents: portefeuille,
+        pct: patrimoine ? (portefeuille / patrimoine) * 100 : 0,
+      }] : [])
       .sort((x, y) => y.valueCents - x.valueCents);
   })();
 

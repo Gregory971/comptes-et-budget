@@ -1,6 +1,7 @@
 import { operationService } from './operationService';
 import { accountService } from './accountService';
 import { categoryService } from './referentialService';
+import { db } from './db';
 import { ymd, lastDayOfMonth, monthLabel, monthKey, type Ymd } from '../utils/date';
 import { categoryParts } from '../utils/splits';
 import { convertOperations, currencyService } from './currencyService';
@@ -49,16 +50,28 @@ export function shiftAnchor(anchor: Date, g: Granularity, dir: number): Date {
 export interface ReportData {
   recettesCents: Cents; depensesCents: Cents; soldeCents: Cents;
   byCategory: { name: string; valueCents: Cents }[];
+  /** Dépenses par tiers (« Sans tiers » pour les opérations qui n'en ont pas). */
+  byPayee: { name: string; valueCents: Cents }[];
+  /** Dépenses rattachées à un projet d'épargne ou à un bien ; les autres n'y figurent pas. */
+  byLink: { name: string; valueCents: Cents }[];
   byMonth: { mois: string; recettesCents: Cents; depensesCents: Cents }[];
   balanceCurve: { date: Ymd; soldeCents: Cents }[];
 }
 
 export const reportService = {
   async build(dbId: string, accountId: string | undefined, range: Range): Promise<ReportData> {
-    const [rawOps, cats, rates] = await Promise.all([
+    const [rawOps, cats, rates, payees, projects, assets] = await Promise.all([
       operationService.list(dbId, { accountId, from: range.from, to: range.to }),
       categoryService.listCategories(dbId, true),
       currencyService.rates(dbId),
+      db.payees.where('dbId').equals(dbId).toArray(),
+      db.projects.where('dbId').equals(dbId).toArray(),
+      db.assets.where('dbId').equals(dbId).toArray(),
+    ]);
+    const payeeName = new Map(payees.map(p => [p.id, p.name]));
+    const linkName = new Map<string, string>([
+      ...projects.map(p => [`p:${p.id}`, `Projet : ${p.name}`] as [string, string]),
+      ...assets.map(a => [`a:${a.id}`, `Bien : ${a.name}`] as [string, string]),
     ]);
     // Un compte seul reste dans sa devise ; plusieurs comptes sont ramenés à la devise de la base.
     const ops = accountId ? rawOps : convertOperations(rawOps, rates);
@@ -66,6 +79,8 @@ export const reportService = {
 
     let recettesCents = 0, depensesCents = 0;
     const catMap: Record<string, Cents> = {};
+    const payeeMap: Record<string, Cents> = {};
+    const linkMap: Record<string, Cents> = {};
     const monthMap: Record<string, { recettesCents: Cents; depensesCents: Cents }> = {};
 
     for (const o of ops) {
@@ -79,6 +94,10 @@ export const reportService = {
       } else {
         depensesCents += -o.amountCents;
         monthMap[mk].depensesCents += -o.amountCents;
+        const tiers = (o.payeeId && payeeName.get(o.payeeId)) || 'Sans tiers';
+        payeeMap[tiers] = (payeeMap[tiers] ?? 0) + -o.amountCents;
+        const lien = o.projectId ? linkName.get(`p:${o.projectId}`) : o.assetId ? linkName.get(`a:${o.assetId}`) : undefined;
+        if (lien) linkMap[lien] = (linkMap[lien] ?? 0) + -o.amountCents;
         for (const p of categoryParts(o)) {
           const key = catName(p.categoryId);
           catMap[key] = (catMap[key] ?? 0) + -p.amountCents;
@@ -100,6 +119,8 @@ export const reportService = {
       byCategory: Object.entries(catMap)
         .map(([name, valueCents]) => ({ name, valueCents }))
         .sort((a, b) => b.valueCents - a.valueCents),
+      byPayee: Object.entries(payeeMap).map(([name, valueCents]) => ({ name, valueCents })).sort((a, b) => b.valueCents - a.valueCents),
+      byLink: Object.entries(linkMap).map(([name, valueCents]) => ({ name, valueCents })).sort((a, b) => b.valueCents - a.valueCents),
       byMonth: Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b))
         .map(([mois, v]) => ({ mois, ...v })),
       balanceCurve,

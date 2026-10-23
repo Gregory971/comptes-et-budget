@@ -52,6 +52,34 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   plutôt que de la rendre fausse. Un virement ne se ventile pas.
 - Données : champ facultatif `splits` sur les opérations, aucune migration.
 
+### Budget avancé
+
+- **Budget saisi pour une période** : par mois, trimestre, semestre ou an (une assurance
+  annuelle de 1 200 € devient 100 € par mois). Le montant mensuel est le lissage ; la
+  saisie d'origine est conservée et réaffichée à la modification. Le suivi, les alertes
+  et les prévisions ne lisent que l'équivalent mensuel : rien d'autre n'a changé pour eux.
+- **Modifier un budget** depuis sa carte (l'écran ne permettait que de le supprimer).
+- **Assistant « Initialiser d'après les dépenses »** : propose, par catégorie, la moyenne
+  mensuelle réellement dépensée sur les 12 derniers mois complets, l'année précédente ou une
+  période libre, arrondie à 1 / 5 / 10 € au supérieur. Chaque montant se corrige, chaque ligne
+  se décoche ; les budgets existants sont conservés sauf demande de remplacement. Les
+  ventilations comptent par part, les comptes en devise sont convertis, virements et recettes
+  ignorés. Rien n'est écrit avant « Appliquer ». « Remettre tous les budgets à zéro » demande
+  confirmation.
+- Données : champs facultatifs `periodMonths` et `periodAmountCents` sur les budgets, aucune
+  migration.
+
+### Graphiques
+
+- Écran Bilans : **dépenses par tiers** (avec « Sans tiers »), **dépenses par projet ou
+  bien**, **recettes et dépenses sur 12 mois glissants** (mois sans écriture compris, pour ne
+  pas fausser la tendance) et **évolution du solde de chaque compte** sur 12 mois, avec le
+  total en pointillé. Au-delà de huit lignes, le reste est regroupé sous « Autres ».
+- Tous les graphiques portent un titre accessible qui résume ce qu'ils montrent. Les prêts
+  (dettes) n'entrent pas dans l'évolution des comptes, comme dans le solde total.
+- **Patrimoine** (Biens / Projets) : la valeur du portefeuille de titres s'ajoute au
+  patrimoine total et à sa répartition.
+
 ### Tâches, notes et rappels
 
 - Carte « Tâches, notes, rappels » sur le tableau de bord : une tâche (avec date

@@ -3,17 +3,22 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useReferentials } from '../hooks/useData';
 import { MoneyInput } from '../components/MoneyInput';
 import { ConfirmDialog } from '../components/Modal';
-import { budgetService } from '../services/budgetService';
+import { BudgetAssistant } from '../components/BudgetAssistant';
+import { PERIOD_LABEL, budgetService } from '../services/budgetService';
 import { budgetState, LEVEL_LABEL } from '../services/budgetAlertService';
 import { useBudgetAlertPrefs } from '../hooks/useBudgetAlerts';
 import { formatEur, type Cents } from '../utils/money';
-import type { Database, Budget } from '../types';
+import type { Database, Budget, BudgetPeriod } from '../types';
 
 export function BudgetScreen({ database }: { database: Database }) {
   const dbId = database.id;
   const ref = useReferentials(dbId);
   const [catId, setCatId] = useState('');
   const [amountCents, setAmountCents] = useState<Cents | null>(null);
+  const [period, setPeriod] = useState<BudgetPeriod>(1);
+  const [editing, setEditing] = useState(false);
+  const [assistant, setAssistant] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<Budget | null>(null);
 
@@ -27,14 +32,25 @@ export function BudgetScreen({ database }: { database: Database }) {
   const totalBudget = rows.reduce((s, r) => s + r.budget.monthlyAmountCents, 0);
   const totalSpent = rows.reduce((s, r) => s + r.spentCents, 0);
   const budgeted = new Set(rows.map(r => r.budget.categoryId));
-  const available = ref.catsForKind('depense').filter(c => !budgeted.has(c.id));
+  // En modification, la catégorie du budget édité reste proposée (elle a déjà un budget).
+  const available = ref.catsForKind('depense').filter(c => !budgeted.has(c.id) || (editing && c.id === catId));
 
   async function define() {
     if (!catId) { setError('Choisissez une catégorie.'); return; }
     if (amountCents === null || amountCents <= 0) { setError('Indiquez un montant supérieur à zéro.'); return; }
     setError(null);
-    await budgetService.set(dbId, catId, amountCents);
-    setCatId(''); setAmountCents(null);
+    try {
+      await budgetService.setPeriodic(dbId, catId, amountCents, period);
+      setCatId(''); setAmountCents(null); setPeriod(1); setEditing(false);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  /** Reprend un budget dans le formulaire, tel qu'il a été saisi (montant et période d'origine). */
+  function edit(b: Budget) {
+    setCatId(b.categoryId); setAmountCents(b.periodAmountCents ?? b.monthlyAmountCents);
+    setPeriod(b.periodMonths ?? 1); setEditing(true); setError(null);
   }
 
   return (
@@ -49,11 +65,20 @@ export function BudgetScreen({ database }: { database: Database }) {
               <option value="">Choisir…</option>
               {available.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select></div>
-          <div style={{ width: 190 }}>
-            <MoneyInput label="Budget mensuel (€)" valueCents={amountCents} onChange={setAmountCents} />
+          <div style={{ width: 170 }}>
+            <MoneyInput label="Montant du budget (€)" valueCents={amountCents} onChange={setAmountCents} />
           </div>
-          <button className="btn" onClick={define}>Définir</button>
+          <div className="field" style={{ width: 150 }}><label htmlFor="bu-period">Période</label>
+            <select id="bu-period" value={period} onChange={e => setPeriod(Number(e.target.value) as BudgetPeriod)}>
+              {([1, 3, 6, 12] as BudgetPeriod[]).map(p => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}</select></div>
+          <button className="btn" onClick={define}>{editing ? 'Enregistrer' : 'Définir'}</button>
+          {editing && <button className="btn ghost" onClick={() => { setEditing(false); setCatId(''); setAmountCents(null); setPeriod(1); }}>Annuler</button>}
         </div>
+        {period > 1 && amountCents !== null && amountCents > 0 && (
+          <p className="muted" role="status" style={{ margin: '4px 0 0', fontSize: 13 }}>
+            Soit {formatEur(Math.round(amountCents / period))} par mois : le suivi du mois s’appuie sur ce lissage.
+          </p>
+        )}
         {error && <p role="alert" style={{ color: 'var(--red)', margin: 0 }}>{error}</p>}
         {available.length === 0 && (
           <p className="muted" style={{ margin: '8px 0 0' }}>
@@ -63,8 +88,15 @@ export function BudgetScreen({ database }: { database: Database }) {
 
       <div className="row" style={{ marginBottom: 14 }}>
         <strong className="panel-t">Suivi des budgets</strong>
-        <span className="muted">{formatEur(totalSpent)} / {formatEur(totalBudget)}</span>
+        <span>
+          <span className="muted" style={{ marginRight: 12 }}>{formatEur(totalSpent)} / {formatEur(totalBudget)}</span>
+          <button className="btn ghost" onClick={() => setAssistant(true)}>Initialiser d’après les dépenses…</button>
+        </span>
       </div>
+      {notice && (
+        <div className="toast" role="status">{notice}
+          <button className="linklike" style={{ marginLeft: 10 }} onClick={() => setNotice(null)}>Fermer</button></div>
+      )}
 
       {sorted.length === 0 ? <p className="muted">Aucun budget défini.</p> : (
         <div className="bud-grid">
@@ -87,6 +119,9 @@ export function BudgetScreen({ database }: { database: Database }) {
                   <span className="bud-num">
                     {formatEur(r.spentCents)} / {formatEur(r.budget.monthlyAmountCents)}
                     <button className="iconbtn" style={{ marginLeft: 8 }}
+                      aria-label={`Modifier le budget ${cat?.name ?? ''}`}
+                      onClick={() => edit(r.budget)}>✏️</button>
+                    <button className="iconbtn" style={{ marginLeft: 4 }}
                       aria-label={`Supprimer le budget ${cat?.name ?? ''}`}
                       onClick={() => setConfirmRemove(r.budget)}>🗑</button>
                   </span>
@@ -100,6 +135,11 @@ export function BudgetScreen({ database }: { database: Database }) {
                     borderRadius: 999, background: `oklch(0.62 0.14 ${hue})`,
                   }} />
                 </div>
+                {r.budget.periodMonths && r.budget.periodAmountCents !== undefined && (
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+                    Budget de {formatEur(r.budget.periodAmountCents)} {PERIOD_LABEL[r.budget.periodMonths]}, lissé sur le mois.
+                  </div>
+                )}
                 <div className={'bud-status' + (state === 'ok' ? '' : ' ' + state)}>
                   {state !== 'ok' && (
                     <span className="bud-flag">
@@ -115,6 +155,8 @@ export function BudgetScreen({ database }: { database: Database }) {
           })}
         </div>
       )}
+
+      {assistant && <BudgetAssistant dbId={dbId} onClose={() => setAssistant(false)} onApplied={setNotice} />}
 
       {confirmRemove && (
         <ConfirmDialog title="Supprimer le budget" danger confirmLabel="Supprimer"

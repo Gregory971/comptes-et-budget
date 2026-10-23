@@ -31,8 +31,8 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
    remplacement en masse, suppression en masse. Archivage par exercice écarté (voir CHANGELOG).
 7. (faite) Tâches / notes / rappels, recherche globale, documents liés aux opérations (pas
    encore aux biens et projets).
-8. Budget avancé (prévision annuelle, périodicité, initialisation d'après l'année précédente),
-   graphiques par tiers, projet, évolution des comptes.
+8. (faite) Budget avancé (budget par période, assistant d'initialisation d'après les dépenses),
+   graphiques par tiers, projet, évolution des dépenses et des comptes.
 9. Finitions bureau : sauvegarde automatique native dans un dossier, ouverture d'un `.cbjson`
    par double-clic, mise à jour de l'installeur, icône et signature.
 

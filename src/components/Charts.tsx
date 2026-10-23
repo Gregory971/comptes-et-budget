@@ -10,7 +10,7 @@ import { formatFr } from '../utils/date';
 const PALETTE = ['#00a8a9', '#4a86e8', '#e05c52', '#f5a623', '#a76fce', '#2bb673',
   '#e67e22', '#3498db', '#fd79a8', '#95a5a6', '#00cec9', '#e84393'];
 
-export function DonutChart({ data }: { data: { name: string; valueCents: Cents }[] }) {
+export function DonutChart({ data, by = 'catégorie' }: { data: { name: string; valueCents: Cents }[]; by?: string }) {
   const titleId = useId();
   const total = data.reduce((s, d) => s + d.valueCents, 0);
   if (total <= 0) return <p className="muted">Aucune donnée sur la période.</p>;
@@ -41,7 +41,7 @@ export function DonutChart({ data }: { data: { name: string; valueCents: Cents }
     <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
       <svg viewBox="0 0 200 200" style={{ width: 200, height: 200, flexShrink: 0 }}
         role="img" aria-labelledby={titleId}>
-        <title id={titleId}>Répartition des dépenses par catégorie, total {formatEur(total)}</title>
+        <title id={titleId}>Répartition des dépenses par {by}, total {formatEur(total)}</title>
         {arcs}
       </svg>
       <ul style={{ flex: 1, minWidth: 160, listStyle: 'none', margin: 0, padding: 0 }}>
@@ -174,5 +174,70 @@ export function HorizonChart({ data }: {
       <text x={4} y={y(max) + 4} fontSize="11" fill="var(--muted)">{formatInt(max)} €</text>
       <text x={4} y={y(min) + 4} fontSize="11" fill="var(--muted)">{formatInt(min)} €</text>
     </svg>
+  );
+}
+
+/**
+ * Évolution de plusieurs séries (un compte par courbe) mois par mois.
+ *
+ * Chaque courbe garde sa couleur d'un rendu à l'autre (palette fixe) ; la légende
+ * redonne le dernier montant de chaque série, ce qui évite d'avoir à lire l'axe.
+ * Le titre accessible résume les valeurs de départ et d'arrivée de chaque courbe.
+ */
+export function MultiLineChart({ labels, series, totalLabel }: {
+  labels: string[];
+  series: { id: string; name: string; values: Cents[] }[];
+  /** Si fourni, trace aussi le total en pointillé. */
+  totalLabel?: { name: string; values: Cents[] };
+}) {
+  const titleId = useId();
+  if (labels.length === 0 || series.length === 0) return <p className="muted">Aucune donnée sur la période.</p>;
+  const W = 600, H = 240, pad = 44;
+  const all = [...series.flatMap(s => s.values), ...(totalLabel?.values ?? [])];
+  const min = Math.min(0, ...all), max = Math.max(1, ...all);
+  const x = (i: number) => pad + (i / Math.max(1, labels.length - 1)) * (W - pad * 2);
+  const y = (v: number) => H - pad - ((v - min) / (max - min || 1)) * (H - pad * 2);
+  const pts = (vals: number[]) => vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const resume = series.map(s => `${s.name} : de ${formatEur(s.values[0])} à ${formatEur(s.values[s.values.length - 1])}`).join(' ; ');
+  // Une étiquette sur deux quand il y a beaucoup de mois, pour qu'elles ne se chevauchent pas.
+  const every = labels.length > 8 ? 2 : 1;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 240 }} role="img" aria-labelledby={titleId}>
+        <title id={titleId}>Évolution du solde des comptes de {labels[0]} à {labels[labels.length - 1]}. {resume}</title>
+        <line x1={pad} y1={y(0)} x2={W - pad} y2={y(0)} stroke="var(--line)" />
+        {totalLabel && <polyline fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="5 4" points={pts(totalLabel.values)} />}
+        {series.map((s, k) => (
+          <g key={s.id}>
+            <polyline fill="none" stroke={PALETTE[k % PALETTE.length]} strokeWidth="2" points={pts(s.values)} />
+            {s.values.map((v, i) => (
+              <circle key={i} cx={x(i)} cy={y(v)} r={5} fill="transparent">
+                <title>{s.name}, {labels[i]} : {formatEur(v)}</title>
+              </circle>
+            ))}
+          </g>
+        ))}
+        {labels.map((l, i) => i % every === 0 && (
+          <text key={l + i} x={x(i)} y={H - pad + 16} textAnchor="middle" fontSize="10" fill="var(--muted)">{l}</text>
+        ))}
+        <text x={pad} y={14} fontSize="11" fill="var(--muted)">{formatInt(max)} €</text>
+        <text x={pad} y={H - pad + 30} fontSize="11" fill="var(--muted)">{formatInt(min)} €</text>
+      </svg>
+      <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 13 }}>
+        {series.map((s, k) => (
+          <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: 3, background: PALETTE[k % PALETTE.length] }} />
+            {s.name} <span className="muted">{formatEur(s.values[s.values.length - 1])}</span>
+          </li>
+        ))}
+        {totalLabel && (
+          <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span aria-hidden="true" style={{ width: 14, borderTop: '2px dashed var(--muted)' }} />
+            {totalLabel.name} <span className="muted">{formatEur(totalLabel.values[totalLabel.values.length - 1])}</span>
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }

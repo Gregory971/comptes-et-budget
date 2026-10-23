@@ -251,8 +251,20 @@ export interface Schedule extends Tracked {   // Échéance (opération programm
   active: boolean;
 }
 
+/** Périodes de saisie d'un budget, en mois : mois, trimestre, semestre, année. */
+export type BudgetPeriod = 1 | 3 | 6 | 12;
+
 export interface Budget extends Tracked {     // Budget prévisionnel mensuel par catégorie
-  id: string; dbId: string; categoryId: string; monthlyAmountCents: Cents;
+  id: string; dbId: string; categoryId: string;
+  /** Équivalent MENSUEL : la seule valeur que lisent le suivi, les alertes et les prévisions. */
+  monthlyAmountCents: Cents;
+  /**
+   * Budget saisi pour une période plus longue (une assurance annuelle de 1 200 €,
+   * un abonnement trimestriel…). `monthlyAmountCents` en est le lissage ; la saisie
+   * d'origine est gardée pour être réaffichée et modifiée telle quelle.
+   */
+  periodMonths?: BudgetPeriod;
+  periodAmountCents?: Cents;
 }
 
 export type AssetType = 'immobilier' | 'vehicule' | 'placement' | 'autre';

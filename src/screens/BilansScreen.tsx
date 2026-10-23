@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useAccounts } from '../hooks/useData';
 import { reportService, periodRange, shiftAnchor, type Granularity } from '../services/reportService';
 import { formatEur } from '../utils/money';
-import { DonutChart, BarsChart, LineChartSimple, HorizonChart } from '../components/Charts';
+import { DonutChart, BarsChart, LineChartSimple, HorizonChart, MultiLineChart } from '../components/Charts';
+import { accountEvolution, monthlySeries, topN } from '../services/trendService';
 import { buildHorizon } from '../services/horizonService';
 import { formatFr } from '../utils/date';
 import type { Database } from '../types';
@@ -22,6 +23,9 @@ export function BilansScreen({ database }: { database: Database }) {
     () => buildHorizon(dbId, accountId || undefined, horizonMois, database.holidayRegion),
     [dbId, accountId, horizonMois, database.holidayRegion], undefined,
   );
+  // Séries sur douze mois glissants : indépendantes de la période choisie plus haut.
+  const mensuel = useLiveQuery(() => monthlySeries(dbId, accountId || undefined, 12), [dbId, accountId], undefined);
+  const evolution = useLiveQuery(() => accountEvolution(dbId, accountId || undefined, 12), [dbId, accountId], undefined);
   const data = useLiveQuery(
     () => reportService.build(dbId, accountId || undefined, range),
     [dbId, accountId, range.from, range.to], undefined,
@@ -157,10 +161,28 @@ export function BilansScreen({ database }: { database: Database }) {
 
           <div className="card"><strong>Dépenses par catégorie</strong>
             <div style={{ marginTop: 12 }}><DonutChart data={data.byCategory} /></div></div>
+          <div className="grid two">
+            <div className="card"><strong>Dépenses par tiers</strong>
+              <div style={{ marginTop: 12 }}><DonutChart data={topN(data.byPayee)} by="tiers" /></div></div>
+            <div className="card"><strong>Dépenses par projet ou bien</strong>
+              <div style={{ marginTop: 12 }}>
+                {data.byLink.length > 0 ? <DonutChart data={topN(data.byLink)} by="projet ou bien" />
+                  : <p className="muted">Aucune dépense rattachée à un projet ou à un bien sur la période.</p>}
+              </div></div>
+          </div>
           <div className="card"><strong>Recettes vs dépenses</strong>
             <div style={{ marginTop: 12 }}><BarsChart data={data.byMonth} /></div></div>
           <div className="card"><strong>Évolution du solde</strong>
             <div style={{ marginTop: 12 }}><LineChartSimple data={data.balanceCurve} /></div></div>
+          <div className="card"><strong>Recettes et dépenses sur 12 mois</strong>
+            <div style={{ marginTop: 12 }}>{mensuel ? <BarsChart data={mensuel} /> : <p className="muted">Calcul en cours…</p>}</div></div>
+          <div className="card"><strong>Évolution des comptes sur 12 mois</strong>
+            <div style={{ marginTop: 12 }}>
+              {evolution ? (
+                <MultiLineChart labels={evolution.labels} series={evolution.series}
+                  totalLabel={evolution.series.length > 1 ? { name: 'Total', values: evolution.total } : undefined} />
+              ) : <p className="muted">Calcul en cours…</p>}
+            </div></div>
         </>
       )}
     </>
