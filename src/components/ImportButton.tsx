@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { backupService, type Backup, type BackupSummary } from '../services/backupService';
 import { isEncrypted } from '../services/cryptoService';
 import { useStore } from '../store/useStore';
@@ -13,7 +13,14 @@ import { Modal } from './Modal';
  * présent dans la barre d'actions de tous les écrans, un clic malencontreux
  * suffisait à écraser les saisies non exportées.
  */
-export function ImportButton({ label = 'Importer' }: { label?: string }) {
+export function ImportButton({ label = 'Importer', hideButton = false, externalFile, onExternalHandled }: {
+  label?: string;
+  /** Pas de bouton : le composant ne sert qu'à porter les fenêtres de confirmation. */
+  hideButton?: boolean;
+  /** Fichier fourni de l'extérieur (double-clic dans l'explorateur) : même parcours qu'un choix manuel. */
+  externalFile?: File | null;
+  onExternalHandled?: () => void;
+}) {
   const setActiveDbId = useStore(s => s.setActiveDbId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ backup: Backup; summary: BackupSummary } | null>(null);
@@ -25,6 +32,14 @@ export function ImportButton({ label = 'Importer' }: { label?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+
+  // Fichier venu de l'extérieur : il passe par exactement la même confirmation qu'un fichier choisi à la main.
+  useEffect(() => {
+    if (!externalFile) return;
+    void onFile(externalFile);
+    onExternalHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalFile]);
 
   async function onFile(file: File) {
     setError(null);
@@ -71,9 +86,11 @@ export function ImportButton({ label = 'Importer' }: { label?: string }) {
 
   return (
     <>
-      <button className="act" onClick={() => inputRef.current?.click()}>
-        <span className="ic" aria-hidden="true">⬇️</span>{label}
-      </button>
+      {!hideButton && (
+        <button className="act" onClick={() => inputRef.current?.click()}>
+          <span className="ic" aria-hidden="true">⬇️</span>{label}
+        </button>
+      )}
       <input ref={inputRef} type="file" accept=".cbjson,.json" style={{ display: 'none' }}
         onChange={async e => {
           const f = e.target.files?.[0];

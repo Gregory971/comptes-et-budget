@@ -11,7 +11,7 @@ import { CurrenciesTab } from './CurrenciesTab';
 import { MaintenanceTab } from './MaintenanceTab';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import {
-  chooseFile, chooseFolder, forgetFile, run as runAutoBackup,
+  chooseDesktopFolder, chooseFile, chooseFolder, forgetFile, run as runAutoBackup,
   status as autoBackupStatus, daysSince, KEEP_COPIES, type AutoBackupStatus,
 } from '../services/autoBackupService';
 import { dbService } from '../services/dbService';
@@ -460,13 +460,13 @@ function GeneralTab({ database }: { database: Database }) {
               <tr><td className="muted">Destination</td>
                 <td>{auto.configured
                   ? <><strong>{auto.targetName}</strong>
-                    <span className="muted"> ({auto.kind === 'dossier' ? 'dossier' : 'fichier'})</span></>
+                    <span className="muted"> ({auto.kind === 'fichier' ? 'fichier' : 'dossier'})</span></>
                   : 'aucune'}</td></tr>
               {auto.configured && (
                 <tr><td className="muted">Dernière écriture</td>
                   <td>{auto.lastRunAt
                     ? <>{new Date(auto.lastRunAt).toLocaleString('fr-FR')} (il y a {daysSince(auto.lastRunAt)} j)
-                      {auto.lastFileName && auto.kind === 'dossier' && (
+                      {auto.lastFileName && auto.kind !== 'fichier' && (
                         <span className="muted" style={{ display: 'block', fontSize: 12 }}>
                           {auto.lastFileName}</span>)}</>
                     : 'jamais'}</td></tr>
@@ -482,16 +482,17 @@ function GeneralTab({ database }: { database: Database }) {
               <button className="btn" disabled={autoBusy} onClick={async () => {
                 setAutoBusy(true);
                 try {
-                  setAuto(await chooseFolder(database.name));
+                  // Édition bureau : boîte de dialogue du système et chemin réel ; navigateur : API du navigateur.
+                  setAuto(auto.desktop ? await chooseDesktopFolder(database.name) : await chooseFolder(database.name));
                   setMsg('Sauvegarde automatique activée dans le dossier choisi.');
                 } catch (e) {
                   setMsg((e as Error).message);
                 } finally { setAutoBusy(false); }
               }}>
-                📁 {auto.kind === 'dossier' ? 'Changer de dossier' : 'Choisir un dossier'}
+                📁 {auto.kind === 'dossier' || auto.kind === 'bureau' ? 'Changer de dossier' : 'Choisir un dossier'}
               </button>
             )}
-            <button className="btn ghost" disabled={autoBusy} onClick={async () => {
+            {!auto.desktop && <button className="btn ghost" disabled={autoBusy} onClick={async () => {
               setAutoBusy(true);
               try {
                 setAuto(await chooseFile(database.name));
@@ -501,7 +502,7 @@ function GeneralTab({ database }: { database: Database }) {
               } finally { setAutoBusy(false); }
             }}>
               📄 {auto.kind === 'fichier' ? 'Changer de fichier' : 'Choisir un fichier'}
-            </button>
+            </button>}
             {auto.configured && (
               <>
                 <button className="btn ghost" disabled={autoBusy} onClick={async () => {

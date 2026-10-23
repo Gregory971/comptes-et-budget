@@ -18,6 +18,25 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
 - ⚠️ Les installeurs ne sont pas signés : un antivirus peut supprimer les
   exécutables à l'installation (constaté avec Bitdefender).
 
+### Finitions de l'édition bureau
+
+- **Sauvegarde automatique dans un dossier de l'ordinateur** (Préférences → Général) :
+  boîte de dialogue du système, chemin réel affiché, une copie datée par jour
+  (`Base_AAAA-MM-JJ.cbjson`), les dix plus récentes gardées — jamais les autres fichiers
+  du dossier. **Désactivée tant que vous ne l'avez pas choisie** : les copies sont en clair, et
+  le dossier Documents peut être synchronisé dans un nuage. Écriture atomique (un plantage ne
+  laisse pas de copie tronquée), échec enregistré et affiché plutôt que masqué.
+- **Double-clic sur un fichier `.cbjson`** : il s'ouvre dans l'application, qui passe par la
+  confirmation d'import habituelle (résumé, fusion ou remplacement, phrase secrète si le fichier
+  est chiffré, copie de sécurité préalable) — rien n'est restauré sans confirmation. Fonctionne
+  aussi quand l'application tourne déjà (un second double-clic arrive dans la même fenêtre).
+- Sécurité du pont avec la page, vérifiée dans l'application Electron réelle : le processus
+  principal contrôle l'origine de chaque appel, n'accepte que du **texte** (une valeur qui n'en
+  est pas est refusée, plus convertie en « [object Object] » puis écrite), contraint le nom des
+  sauvegardes à `base_AAAA-MM-JJ.cbjson` (ni chemin, ni `..`, ni extension de programme, ni
+  nom réservé de Windows), plafonne la taille, ne supprime que des copies de la même base.
+- Correction trouvée à l'essai : le préchargement convertissait chaque paramètre en texte.
+
 ### Prêts et comptes
 
 - **Prêts à mensualités constantes** : un compte de type « Prêt » suit la dette

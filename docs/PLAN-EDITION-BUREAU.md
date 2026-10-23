@@ -33,8 +33,9 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
    encore aux biens et projets).
 8. (faite) Budget avancé (budget par période, assistant d'initialisation d'après les dépenses),
    graphiques par tiers, projet, évolution des dépenses et des comptes.
-9. Finitions bureau : sauvegarde automatique native dans un dossier, ouverture d'un `.cbjson`
-   par double-clic, mise à jour de l'installeur, icône et signature.
+9. (faite, hors signature) Finitions bureau : sauvegarde automatique native dans un dossier,
+   ouverture d'un `.cbjson` par double-clic. La signature de l'installeur (certificat payant) et
+   la mise à jour automatique restent à faire.
 
 10. Optimisation UX / UI, une fois tout implémenté (demande du 23/10/2026) : revue de bout en
     bout des parcours et de l'interface — cohérence visuelle, densité des écrans, thème

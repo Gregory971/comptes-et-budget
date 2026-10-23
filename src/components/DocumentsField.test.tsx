@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DocumentsField } from './DocumentsField';
+import { fauxPont } from '../utils/fauxPont';
 import { OperationForm } from './OperationForm';
 import { MaintenanceTab } from '../screens/MaintenanceTab';
 import { OperationsScreen } from '../screens/OperationsScreen';
@@ -102,7 +103,7 @@ describe('champ « Documents liés »', () => {
 
   describe('dans l’édition bureau', () => {
     it('choisit un fichier par la boîte de dialogue du système', async () => {
-      window.comptesBudget = { desktop: true, pickFile: vi.fn().mockResolvedValue('D:\\Scans\\ticket.jpg'), openPath: vi.fn() };
+      window.comptesBudget = fauxPont({ pickFile: vi.fn().mockResolvedValue('D:\\Scans\\ticket.jpg') });
       const vu: DocumentLink[][] = [];
       render(<Hote onChange={d => vu.push(d)} />);
       fireEvent.click(screen.getByRole('button', { name: 'Choisir un fichier…' }));
@@ -111,7 +112,7 @@ describe('champ « Documents liés »', () => {
 
     it('ne fait rien quand l’utilisateur annule la boîte de dialogue', async () => {
       const pickFile = vi.fn().mockResolvedValue(null);
-      window.comptesBudget = { desktop: true, pickFile, openPath: vi.fn() };
+      window.comptesBudget = fauxPont({ pickFile });
       const vu: DocumentLink[][] = [];
       render(<Hote onChange={d => vu.push(d)} />);
       fireEvent.click(screen.getByRole('button', { name: 'Choisir un fichier…' }));
@@ -120,7 +121,7 @@ describe('champ « Documents liés »', () => {
     });
 
     it('un fichier choisi est refusé s’il n’est pas valide, et le dit', async () => {
-      window.comptesBudget = { desktop: true, pickFile: vi.fn().mockResolvedValue('relatif.pdf'), openPath: vi.fn() };
+      window.comptesBudget = fauxPont({ pickFile: vi.fn().mockResolvedValue('relatif.pdf') });
       render(<Hote />);
       fireEvent.click(screen.getByRole('button', { name: 'Choisir un fichier…' }));
       expect((await screen.findByRole('alert')).textContent).toMatch(/chemin complet/);
@@ -128,7 +129,7 @@ describe('champ « Documents liés »', () => {
 
     it('ouvre un fichier par le pont et relaie son refus', async () => {
       const openPath = vi.fn().mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, error: 'Fichier introuvable : il a peut-être été déplacé.' });
-      window.comptesBudget = { desktop: true, pickFile: vi.fn(), openPath };
+      window.comptesBudget = fauxPont({ openPath });
       render(<Hote initial={[{ label: 'Local', path: 'C:\\Docs\\a.pdf' }]} />);
       fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le document Local' }));
       await waitFor(() => expect(openPath).toHaveBeenCalledWith('C:\\Docs\\a.pdf'));

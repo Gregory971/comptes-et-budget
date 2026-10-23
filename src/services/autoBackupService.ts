@@ -30,6 +30,7 @@
 import { db, stamp } from './db';
 import { backupService } from './backupService';
 import { toYmd } from '../utils/date';
+import { getBridge } from '../utils/desktopBridge';
 
 const HANDLE = 'autoBackupHandle';
 const KIND = 'autoBackupKind';
@@ -41,7 +42,8 @@ const LAST_ERROR = 'autoBackupLastError';
 /** Nombre de sauvegardes datées conservées dans un dossier. */
 export const KEEP_COPIES = 10;
 
-export type TargetKind = 'fichier' | 'dossier';
+/** « bureau » : dossier de cet ordinateur écrit par l'édition bureau, sans File System Access API. */
+export type TargetKind = 'fichier' | 'dossier' | 'bureau';
 
 interface Writable { write(data: string): Promise<void>; close(): Promise<void> }
 
@@ -89,6 +91,8 @@ async function handleCourant(): Promise<FsHandle | undefined> {
 export interface AutoBackupStatus {
   supported: boolean;
   folderSupported: boolean;
+  /** Édition bureau : le dossier est géré par l'application, avec son chemin réel. */
+  desktop?: boolean;
   /** Une destination a été désignée. */
   configured: boolean;
   kind?: TargetKind;
@@ -102,13 +106,18 @@ export interface AutoBackupStatus {
 }
 
 export async function status(): Promise<AutoBackupStatus> {
-  const handle = await handleCourant();
+  const bridge = getBridge();
+  const kind = await get<TargetKind>(KIND);
+  // Édition bureau : la destination est un dossier dont on connaît le chemin réel.
+  const dossierBureau = bridge && kind === 'bureau' ? await bridge.backupFolder() : null;
+  const handle = kind === 'bureau' ? undefined : await handleCourant();
   return {
-    supported: isSupported(),
-    folderSupported: supportsFolder(),
-    configured: Boolean(handle),
-    kind: await get<TargetKind>(KIND),
-    targetName: handle?.name,
+    supported: isSupported() || !!bridge,
+    folderSupported: supportsFolder() || !!bridge,
+    desktop: !!bridge,
+    configured: kind === 'bureau' ? Boolean(dossierBureau) : Boolean(handle),
+    kind,
+    targetName: kind === 'bureau' ? dossierBureau ?? undefined : handle?.name,
     lastRunAt: await get<string>(LAST_RUN),
     lastFileName: await get<string>('autoBackupLastFileName'),
     lastManualExportAt: await get<string>(LAST_MANUAL),
@@ -161,8 +170,46 @@ export async function chooseFolder(baseName: string): Promise<AutoBackupStatus> 
   return run();
 }
 
+/**
+ * Désigne un dossier de CET ORDINATEUR par la boîte de dialogue du système (édition
+ * bureau). L'application connaît alors le chemin réel, écrit elle-même dans le dossier et
+ * n'y garde que les KEEP_COPIES plus récentes. Les copies sont en clair : l'activation est
+ * toujours un choix de l'utilisateur, jamais un réglage par défaut.
+ */
+export async function chooseDesktopFolder(baseName: string): Promise<AutoBackupStatus> {
+  const bridge = getBridge();
+  if (!bridge) throw new Error('Cette fonction n’existe que dans l’édition bureau.');
+  const dossier = await bridge.chooseBackupFolder();
+  if (!dossier) return status();            // annulé, ou dossier inutilisable (protégé en écriture)
+  cache = undefined;
+  await db.settings.delete(HANDLE);
+  await set(KIND, 'bureau');
+  await set(BASENAME, safeBaseName(baseName));
+  await db.settings.delete(LAST_ERROR);
+  return run();
+}
+
+/** Écrit la sauvegarde du jour dans le dossier de l'ordinateur. L'échec est enregistré, jamais masqué. */
+async function runDesktop(): Promise<AutoBackupStatus> {
+  try {
+    const bridge = getBridge();
+    if (!bridge) throw new Error('L’écriture dans un dossier de l’ordinateur n’est possible que dans l’édition bureau.');
+    if (!(await bridge.backupFolder())) throw new Error('Aucun dossier de sauvegarde n’est choisi.');
+    const nom = `${await get<string>(BASENAME) ?? 'Comptes'}_${toYmd(new Date())}.cbjson`;
+    const r = await bridge.writeBackup(nom, await backupService.serialize());
+    if (!r.ok) throw new Error(r.error ?? 'Écriture impossible.');
+    await set(LAST_RUN, stamp());
+    await set('autoBackupLastFileName', nom);
+    await db.settings.delete(LAST_ERROR);
+  } catch (e) {
+    await set(LAST_ERROR, (e as Error).message);
+  }
+  return status();
+}
+
 /** Oublie la destination : la sauvegarde automatique s'arrête. */
 export async function forgetFile(): Promise<void> {
+  if ((await get<TargetKind>(KIND)) === 'bureau') await getBridge()?.forgetBackupFolder();
   cache = undefined;
   await db.settings.delete(HANDLE);
   await db.settings.delete(KIND);
@@ -207,6 +254,7 @@ async function purge(dossier: FsHandle, baseName: string): Promise<void> {
  * sauvegarde que l'on croit faite est pire que pas de sauvegarde du tout.
  */
 export async function run(): Promise<AutoBackupStatus> {
+  if ((await get<TargetKind>(KIND)) === 'bureau') return runDesktop();
   const handle = await handleCourant();
   if (!handle) return status();
   try {

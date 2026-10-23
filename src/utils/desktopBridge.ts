@@ -2,13 +2,24 @@ import { documentKind } from './documents';
 
 /**
  * Pont exposé par l'édition bureau (desktop/preload.cjs) ; absent dans le navigateur.
- * La page ne sait rien faire de plus que ces deux actions.
+ * La page ne sait rien faire de plus que ces actions.
  */
 export interface DesktopBridge {
   desktop: true;
   /** Boîte « Ouvrir » : chemin choisi, ou null si l'utilisateur annule. */
   pickFile: () => Promise<string | null>;
   openPath: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Dossier des sauvegardes automatiques de cet ordinateur, ou null s'il n'est pas choisi. */
+  backupFolder: () => Promise<string | null>;
+  /** Boîte « Choisir un dossier » ; renvoie le dossier retenu, ou null (annulé ou inutilisable). */
+  chooseBackupFolder: () => Promise<string | null>;
+  forgetBackupFolder: () => Promise<boolean>;
+  /** Écrit `nom` (forme « base_AAAA-MM-JJ.cbjson ») dans ce dossier et garde les 10 plus récentes. */
+  writeBackup: (name: string, content: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
+  /** Sauvegarde .cbjson ouverte depuis l'explorateur (double-clic), remise une seule fois. */
+  takePendingBackup: () => Promise<{ name: string; content: string } | null>;
+  /** Prévenu d'un nouveau double-clic pendant que l'application tourne ; renvoie la fonction qui se désabonne. */
+  onBackupOpened: (callback: () => void) => () => void;
 }
 
 declare global {
