@@ -85,18 +85,18 @@ export function Layout({ actions, children }: { actions?: ReactNode; children: R
             </button>
           ))}
         </nav>
+        {database && (
+          <button type="button" className="lockbtn side-search" onClick={() => setSearching(true)}
+            title="Rechercher dans toute la base (Ctrl+K)">
+            <span aria-hidden="true">🔍</span> <span className="side-search-t">Rechercher</span> <small className="muted">Ctrl+K</small>
+          </button>
+        )}
         {/* Les actions occupaient une colonne à part, qui faisait doublon avec
             cette barre depuis la refonte ; elles y sont repliées. */}
         <div className="side-acts" aria-label="Actions" role="group">
           {actions ?? <DefaultActions />}
         </div>
         <div className="side-foot">
-          {database && (
-            <button type="button" className="lockbtn" onClick={() => setSearching(true)}
-              title="Rechercher dans toute la base (Ctrl+K)">
-              <span aria-hidden="true">🔍</span> Rechercher <small className="muted">Ctrl+K</small>
-            </button>
-          )}
           {guarded && (
             <button type="button" className="lockbtn" onClick={lock}
               title="Verrouiller l’application : les identifiants seront redemandés">

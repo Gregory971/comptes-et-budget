@@ -59,7 +59,7 @@ export function ComptesScreen({ database }: { database: Database }) {
             const solde = balances[a.id] ?? a.initialBalanceCents;
             return (
               <div className="acc" key={a.id}>
-                <div className="acc-type">{TYPE_LABEL[a.type]}{a.group ? ` · ${a.group}` : ''}</div>
+                <div className="acc-type">{TYPE_LABEL[a.type]}{a.group && a.group !== TYPE_LABEL[a.type] ? ` · ${a.group}` : ''}</div>
                 <div className="acc-name">
                   <span aria-hidden="true">{a.logo ?? '🏦'}</span> {a.name}
                   {a.favorite && <span title="Favori" aria-label="Favori"> ⭐</span>}
@@ -106,7 +106,7 @@ export function ComptesScreen({ database }: { database: Database }) {
                 </td>
               </tr>
             ))}
-            {tresorerie.length === 0 && <tr><td colSpan={5} className="muted">Aucun compte actif.</td></tr>}
+            {accounts.length > 0 && tresorerie.length === 0 && <tr><td colSpan={5} className="muted">Aucun compte actif.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -116,7 +116,7 @@ export function ComptesScreen({ database }: { database: Database }) {
           <strong className="panel-t">Prêts</strong>
           <button className="btn" onClick={() => setCreatingLoan(true)} disabled={tresorerie.length === 0}>+ Nouveau prêt</button>
         </div>
-        {prets.length === 0 && (
+        {accounts.length > 0 && prets.length === 0 && (
           <p className="muted" style={{ margin: 0 }}>
             Aucun prêt. Un prêt suit la dette restante, comptabilise chaque mensualité (capital en virement,
             intérêts et assurance en dépense) et reste hors du solde total.

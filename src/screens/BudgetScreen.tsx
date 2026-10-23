@@ -25,7 +25,10 @@ export function BudgetScreen({ database }: { database: Database }) {
   // Seuil d'attention choisi dans les Préférences (80 % par défaut).
   const { threshold } = useBudgetAlertPrefs();
   // Une seule lecture de la tranche du mois, agrégée par catégorie.
-  const rows = useLiveQuery(() => budgetService.monthlyStatus(dbId), [dbId], []) ?? [];
+  // Sans valeur initiale : tant que la lecture n'a pas abouti, on n'affiche pas « aucun budget ».
+  const lues = useLiveQuery(() => budgetService.monthlyStatus(dbId), [dbId]);
+  const chargees = lues !== undefined;
+  const rows = lues ?? [];
   const sorted = [...rows].sort((a, b) =>
     ref.catName(a.budget.categoryId).localeCompare(ref.catName(b.budget.categoryId), 'fr'));
 
@@ -80,7 +83,7 @@ export function BudgetScreen({ database }: { database: Database }) {
           </p>
         )}
         {error && <p role="alert" style={{ color: 'var(--red)', margin: 0 }}>{error}</p>}
-        {available.length === 0 && (
+        {chargees && available.length === 0 && (
           <p className="muted" style={{ margin: '8px 0 0' }}>
             Toutes les catégories de dépense ont déjà un budget.</p>
         )}
@@ -98,7 +101,7 @@ export function BudgetScreen({ database }: { database: Database }) {
           <button className="linklike" style={{ marginLeft: 10 }} onClick={() => setNotice(null)}>Fermer</button></div>
       )}
 
-      {sorted.length === 0 ? <p className="muted">Aucun budget défini.</p> : (
+      {sorted.length === 0 ? (chargees ? <p className="muted">Aucun budget défini.</p> : null) : (
         <div className="bud-grid">
           {sorted.map(r => {
             const cat = ref.cat(r.budget.categoryId);

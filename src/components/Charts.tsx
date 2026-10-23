@@ -26,6 +26,17 @@ export function DonutChart({ data, by = 'catégorie' }: { data: { name: string; 
   const arcs = data.map((d, i) => {
     const a0 = bounds[i].start / total * 2 * Math.PI;
     const a1 = bounds[i].end / total * 2 * Math.PI;
+    // Une seule part = cercle complet : un arc de 360° a des extrémités confondues et ne se dessine pas.
+    if (a1 - a0 >= 2 * Math.PI - 1e-9) {
+      const ring = (rad: number, sweep: number) =>
+        `M${cx} ${cy - rad} A${rad} ${rad} 0 1 ${sweep} ${cx} ${cy + rad} A${rad} ${rad} 0 1 ${sweep} ${cx} ${cy - rad}`;
+      return (
+        <path key={d.name} fill={PALETTE[i % PALETTE.length]} fillRule="evenodd"
+          d={`${ring(R, 1)} Z ${ring(r, 0)} Z`}>
+          <title>{d.name} : {formatEur(d.valueCents)} ({(d.valueCents / total * 100).toFixed(0)} %)</title>
+        </path>
+      );
+    }
     const large = a1 - a0 > Math.PI ? 1 : 0;
     const p = (a: number, rad: number) => [cx + rad * Math.sin(a), cy - rad * Math.cos(a)];
     const [x0, y0] = p(a0, R), [x1, y1] = p(a1, R), [x2, y2] = p(a1, r), [x3, y3] = p(a0, r);
@@ -70,7 +81,7 @@ export function BarsChart({ data }: { data: { mois: string; recettesCents: Cents
       <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--line)" />
       {data.map((d, i) => {
         const x = pad + i * bw;
-        const w = bw / 3;
+        const w = Math.min(bw / 3, 40);                  // un seul mois : pas de barres géantes
         return (
           <g key={d.mois}>
             <rect x={x + bw / 2 - w - 2} y={y(d.recettesCents)} width={w} height={H - pad - y(d.recettesCents)} fill="var(--green)">

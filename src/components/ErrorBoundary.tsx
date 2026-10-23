@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error?: 
             Vos données enregistrées ne sont pas affectées.
           </p>
           <pre style={{
-            background: '#f4f6f8', padding: 12, borderRadius: 8, fontSize: 12,
+            background: 'var(--tint, #f4f6f8)', padding: 12, borderRadius: 8, fontSize: 12,
             whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto',
           }}>{error.message}</pre>
           <button className="btn" style={{ width: '100%', marginTop: 12 }}

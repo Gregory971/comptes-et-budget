@@ -31,6 +31,9 @@
   /* Formes */
   --r-card:18px; --r-card-sm:16px; --r-ctl:10px; --r-pill:999px; --sidebar-w:264px;
   --font-title:'Space Grotesk',system-ui,sans-serif;
+  /* Teintes de lignes, de survol et de bandeaux : variables, pour suivre le thème. */
+  --th:#f0f3f7; --hov:#eaf3ff; --sel:#dbeafe; --bar:#fbfcfe; --tint:#f4f6f8; --tint-b:#f4f7fb;
+  --dep-bg:#fdeceb; --rec-bg:#e8f6ee; --hov-soft:#f3f6fb; --dis:#b6c0cc;
 }
 /* ---- Thème sombre ----
    Le modèle de données annonçait un thème « clair | sombre » depuis la v1 sans
@@ -58,6 +61,9 @@
   --field-line:oklch(0.40 0.015 240); --track:oklch(0.33 0.015 240);
   /* Sémantique — remontées en clarté pour rester lisibles sur fond sombre */
   --green:oklch(0.74 0.15 150); --red:oklch(0.70 0.17 25); --orange:oklch(0.76 0.14 55);
+  --th:oklch(0.30 0.018 240); --hov:oklch(0.30 0.03 225); --sel:oklch(0.34 0.05 215); --bar:oklch(0.22 0.016 240);
+  --tint:oklch(0.27 0.016 240); --tint-b:oklch(0.27 0.016 240); --dep-bg:oklch(0.30 0.05 25); --rec-bg:oklch(0.30 0.05 150);
+  --hov-soft:oklch(0.29 0.02 240); --dis:oklch(0.5 0.015 240);
   /* Formes : inchangées, seules les couleurs basculent. */
   color-scheme:dark;
 }
@@ -78,6 +84,9 @@
     --field-line:oklch(0.40 0.015 240); --track:oklch(0.33 0.015 240);
     /* Sémantique — remontées en clarté pour rester lisibles sur fond sombre */
     --green:oklch(0.74 0.15 150); --red:oklch(0.70 0.17 25); --orange:oklch(0.76 0.14 55);
+    --th:oklch(0.30 0.018 240); --hov:oklch(0.30 0.03 225); --sel:oklch(0.34 0.05 215); --bar:oklch(0.22 0.016 240);
+    --tint:oklch(0.27 0.016 240); --tint-b:oklch(0.27 0.016 240); --dep-bg:oklch(0.30 0.05 25); --rec-bg:oklch(0.30 0.05 150);
+    --hov-soft:oklch(0.29 0.02 240); --dis:oklch(0.5 0.015 240);
     /* Formes : inchangées, seules les couleurs basculent. */
     color-scheme:dark;
   }
@@ -170,7 +179,7 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .cur-badge{border:1px solid var(--accent);color:var(--accent);font-weight:700;text-align:center;border-radius:var(--r-pill);padding:4px 0;margin-bottom:14px}
 .act{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--accent-d);padding:9px 8px;border-radius:var(--r-ctl);font-size:14px;font-weight:600;text-align:left}
 .act:hover{background:var(--row-alt)}
-.act.disabled{color:#b6c0cc;cursor:default}
+.act.disabled{color:var(--dis);cursor:default}
 .act.disabled:hover{background:none}
 .act .ic{font-size:16px;width:18px;text-align:center}
 .act-sep{height:1px;background:var(--line);margin:10px 4px}
@@ -181,16 +190,16 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .toolbar2{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .selbox{min-width:230px}
 .monthnav{display:flex;align-items:center;border:1px solid var(--line);border-radius:18px;overflow:hidden}
-.monthnav button{background:#eef2f6;border:none;padding:7px 14px;font-size:15px}
-.monthnav button:hover{background:#e0e6ee}
+.monthnav button{background:var(--line-soft);color:var(--txt);border:none;padding:7px 14px;font-size:15px}
+.monthnav button:hover{background:var(--line)}
 .monthnav .lbl{padding:7px 18px;min-width:130px;text-align:center;text-transform:capitalize;font-weight:600}
 
 /* ---- Tableau dense ---- */
 .opstable{width:100%;border-collapse:collapse}
-.opstable th{background:#f0f3f7;color:var(--muted);font-size:11px;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.opstable th{background:var(--th);color:var(--muted);font-size:11px;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0}
 .opstable td{padding:8px 10px;border-bottom:1px solid #eef1f5;font-size:13px;white-space:nowrap}
 .opstable tr:nth-child(even) td{background:var(--row-alt)}
-.opstable tr:hover td{background:#eaf3ff}
+.opstable tr:hover td{background:var(--hov)}
 .opstable .num{text-align:right;font-variant-numeric:tabular-nums}
 .neg{color:var(--red)}.pos{color:var(--green)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
@@ -199,10 +208,10 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .cat-cell{display:flex;align-items:center;gap:9px}
 .cat-cell .em{font-size:16px}
 .chip{display:inline-block;padding:4px 10px;border-radius:var(--r-pill);font-size:11px;font-weight:700;background:var(--row-alt);color:var(--muted)}
-.chip.dep{background:#fdeceb;color:var(--red)}.chip.rec{background:#e8f6ee;color:var(--green)}
+.chip.dep{background:var(--dep-bg);color:var(--red)}.chip.rec{background:var(--rec-bg);color:var(--green)}
 
 /* ---- Barre solde bas ---- */
-.statusbar{display:flex;align-items:center;gap:18px;padding:8px 16px;border-top:1px solid var(--line);background:#fbfcfe;flex-shrink:0}
+.statusbar{display:flex;align-items:center;gap:18px;padding:8px 16px;border-top:1px solid var(--line);background:var(--bar);flex-shrink:0}
 .solde-pill{display:flex;flex-direction:column;align-items:center;color:#fff;border-radius:8px;padding:5px 16px;font-weight:700}
 .solde-pill small{font-weight:400;opacity:.9}
 .solde-pill.bank{background:var(--green)}
@@ -249,7 +258,7 @@ table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
 .modal-body{margin-top:12px;overflow-y:auto;min-height:0}
 .base-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .base-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:10px 12px;font-size:14px;cursor:pointer}
-.base-item:hover{background:#f3f6fb}
+.base-item:hover{background:var(--hov-soft)}
 .base-item.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(33,86,184,.15)}
 .prof-dot{width:10px;height:10px;border-radius:50%}
 .prof-dot.perso{background:#2156b8}.prof-dot.pro{background:#00a8a9}
@@ -276,7 +285,7 @@ table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
 /* Sélection de ligne (Opérations) */
 .opstable tr{cursor:pointer}
-.opstable tr.sel td{background:#dbeafe !important;box-shadow:inset 3px 0 0 var(--accent)}
+.opstable tr.sel td{background:var(--sel) !important;box-shadow:inset 3px 0 0 var(--accent)}
 [data-theme="pro"] .opstable tr.sel td{background:#cdeeee !important;box-shadow:inset 3px 0 0 #00a8a9}
 .table-scroll{overflow:auto}
 
@@ -371,7 +380,7 @@ table.simple th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
 /* Barre de progression (budgets, projets d'épargne). */
 .progress {
-  height: 9px; background: #eef2f6; border-radius: 5px;
+  height: 9px; background: var(--track); border-radius: 5px;
   margin-top: 5px; overflow: hidden;
 }
 
@@ -443,7 +452,7 @@ input[type="checkbox"] {
 .preview {
   margin-top: 10px;
   padding: 8px 12px;
-  background: #f4f6f8;
+  background: var(--tint);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -522,7 +531,7 @@ details[open] > summary { margin-bottom: 4px; }
   gap: 4px;
   flex-wrap: wrap;
   padding: 10px 16px;
-  background: #f4f7fb;
+  background: var(--tint-b);
   border-bottom: 1px solid var(--line);
 }
 .forecast-bar > div {
@@ -623,7 +632,11 @@ details[open] > summary { margin-bottom: 4px; }
   .dash{grid-template-columns:1fr}
 }
 @media (max-width:640px){
-  .kpis,.acc-grid{grid-template-columns:1fr}
+  .acc-grid{grid-template-columns:1fr}
+  /* Quatre totaux sur un écran de téléphone : deux par ligne, plus compacts. */
+  .kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kpi{padding:14px}
+  .kpi-val{font-size:20px}
   .page-head{flex-direction:column}
 }
 
@@ -707,6 +720,14 @@ details[open] > summary { margin-bottom: 4px; }
 .lockbtn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border-radius:var(--r-ctl);
   background:none;border:1px solid rgba(255,255,255,.18);color:var(--sidebar-txt);font-size:13px;font-weight:600}
 .lockbtn:hover{background:var(--sidebar-card);color:#fff}
+
+/* La recherche vit sous la navigation : au pied de la barre elle sortait de l'écran
+   dès 768 px de haut, et le pied est masqué sur téléphone. */
+.side-search{margin-top:-16px}
+@media (max-width:900px){
+  .side-search{margin-top:0;width:auto;white-space:nowrap}
+  .side-search small{display:none}
+}
 
 @media (max-width:900px){
   .auth{grid-template-columns:1fr}

@@ -118,7 +118,7 @@ export function OperationsScreen({ database }: { database: Database }) {
       <Act ic="✔️" label="Rapprocher"
         on={() => selected && operationService.toggleChecked(selected.id, !selected.checked)} dis={!selected} />
       <div className="act-sep" />
-      <Act ic="🔍" label="Rechercher" on={() => searchRef.current?.focus()} />
+      <Act ic="🔍" label="Filtrer la liste" on={() => searchRef.current?.focus()} />
       <div className="act-sep" />
       <Act ic="⬆️" label="Exporter" on={() => backupService.download()} />
       <Act ic="📤" label="Exporter les opérations" on={() => setExporting(true)} />

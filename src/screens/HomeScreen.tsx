@@ -91,13 +91,14 @@ export function HomeScreen({ database }: { database: Database }) {
           </div>
           {recent.map(o => {
             const cat = ref.cat(o.categoryId);
-            const nom = operationCategoryName(o, ref.catName);
+            const virement = !!o.transferId;
+            const nom = virement ? 'Virement' : operationCategoryName(o, ref.catName);
             const h = hueOf(nom);
             return (
               <div className="tx" key={o.id}>
                 <span className="tx-chip" aria-hidden="true"
                   style={{ background: `oklch(0.94 0.03 ${h})`, color: `oklch(0.4 0.1 ${h})` }}>
-                  {cat?.icon || nom.charAt(0).toUpperCase()}
+                  {virement ? '⇄' : cat?.icon || nom.charAt(0).toUpperCase()}
                 </span>
                 <span className="tx-main">
                   <span className="tx-lbl">{o.label || nom}</span>
