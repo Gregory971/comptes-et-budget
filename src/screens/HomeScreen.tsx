@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useStore } from '../store/useStore';
 import { useAccounts, useBalances, useReferentials } from '../hooks/useData';
 import { operationService } from '../services/operationService';
+import { ACCOUNT_TYPE_LABEL, isCash } from '../services/accountService';
 import { periodRange, reportService } from '../services/reportService';
 import { scheduleService } from '../services/scheduleService';
 import { BudgetAlertBanner } from '../components/BudgetAlerts';
@@ -42,7 +43,7 @@ export function HomeScreen({ database }: { database: Database }) {
       .slice(0, 4);
   }, [dbId, now], []) ?? [];
 
-  const total = accounts.reduce((s, a) => s + (balances[a.id] ?? a.initialBalanceCents), 0);
+  const total = accounts.filter(isCash).reduce((s, a) => s + (balances[a.id] ?? a.initialBalanceCents), 0);
 
   return (
     <>
@@ -131,7 +132,7 @@ export function HomeScreen({ database }: { database: Database }) {
           const solde = balances[a.id] ?? a.initialBalanceCents;
           return (
             <div className="acc" key={a.id}>
-              <div className="acc-type">{a.type}</div>
+              <div className="acc-type">{ACCOUNT_TYPE_LABEL[a.type]}</div>
               <div className="acc-name"><span aria-hidden="true">{a.logo ?? '🏦'}</span> {a.name}</div>
               <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatEur(solde)}</div>
             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { loanService } from '../services/loanService';
 import { scheduleService, occurrenceOf } from '../services/scheduleService';
 import { useReferentials } from '../hooks/useData';
 import { Modal } from './Modal';
@@ -29,8 +30,9 @@ export function DueSchedules({ database }: { database: Database }) {
     if (ranFor.current === dbId) return;
     ranFor.current = dbId;
     let cancelled = false;
-    scheduleService.runAutoPost(dbId, region)
-      .then(n => { if (!cancelled && n > 0) setAutoPosted(n); })
+    // Échéances programmées, puis mensualités de prêt qui l'ont demandé.
+    Promise.all([scheduleService.runAutoPost(dbId, region), loanService.runAutoPost(dbId)])
+      .then(([n, m]) => { if (!cancelled && n + m > 0) setAutoPosted(n + m); })
       .catch(e => console.error('Comptabilisation automatique impossible :', e));
     return () => { cancelled = true; };
   }, [dbId, region]);
@@ -40,7 +42,7 @@ export function DueSchedules({ database }: { database: Database }) {
   if (autoPosted > 0 && pending.length === 0) {
     return (
       <div className="toast" role="status">
-        {autoPosted} échéance(s) comptabilisée(s) automatiquement.
+        {autoPosted} échéance(s) ou mensualité(s) comptabilisée(s) automatiquement.
         <button className="linklike" style={{ marginLeft: 10 }}
           onClick={() => setAutoPosted(0)}>Fermer</button>
       </div>

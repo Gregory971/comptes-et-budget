@@ -1,5 +1,42 @@
 # Journal des modifications
 
+## Version 2.9.0 — édition bureau (en préparation)
+
+Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
+
+### Édition bureau (Windows)
+
+- Application installable pour Windows (installeur NSIS x64 et ARM64) : coque
+  Electron autour de la même application, dans `desktop/`. Les données restent
+  dans le profil de l'utilisateur ; l'application est servie par un protocole
+  privé `cb://app` et la politique de sécurité (`connect-src 'none'`) est
+  inchangée. Aucun accès Node dans la page, permissions du navigateur refusées.
+- Nouveau mode de construction `vite build --mode desktop` (sans PWA, sans la
+  passerelle OneDrive dont l'adresse de retour est celle du site publié).
+- Reprise des données : sauvegarde `.cbjson` de la version web, par « Restaurer
+  une sauvegarde » au premier lancement ou par le bouton Importer.
+- ⚠️ Les installeurs ne sont pas signés : un antivirus peut supprimer les
+  exécutables à l'installation (constaté avec Bitdefender).
+
+### Prêts et comptes
+
+- **Prêts à mensualités constantes** : un compte de type « Prêt » suit la dette
+  restante. Assistant de création (capital, taux, durée, assurance, compte qui
+  paie, catégorie des intérêts, mensualités déjà remboursées) avec aperçu de la
+  mensualité et du coût total ; tableau d'amortissement ; avancement du
+  remboursement.
+- Comptabiliser une mensualité écrit un virement pour le capital et une dépense
+  pour les intérêts et l'assurance, en une seule transaction. Jamais de doublon,
+  même en cas d'appels simultanés. Comptabilisation automatique facultative au
+  lancement.
+- Un prêt est une dette : il n'entre pas dans le solde total ni dans les
+  prévisions de trésorerie.
+- Comptes : groupe, numéro, **favori** (en tête des listes) et **masqué**
+  (retiré des listes et du solde total sans archivage, réversible).
+- Données : champs facultatifs ajoutés aux comptes, aucune migration de schéma.
+- Limite : les conditions d'un prêt ne se modifient pas après création
+  (supprimer et recréer).
+
 ## Version 2.8.0 — 10 octobre 2026
 
 Lot de cinq améliorations, développées en parallèle puis fusionnées.

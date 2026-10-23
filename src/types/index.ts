@@ -15,7 +15,7 @@ import type { HolidayRule, Region } from '../utils/holidays';
 export type { Ymd, Cents, HolidayRule, Region };
 
 export type Kind = 'depense' | 'recette' | 'virement';
-export type AccountType = 'courant' | 'epargne' | 'especes' | 'carte';
+export type AccountType = 'courant' | 'epargne' | 'especes' | 'carte' | 'pret';
 
 export type Profile = 'perso' | 'pro';
 
@@ -35,6 +35,32 @@ export interface Database extends Tracked {
   holidayRegion: Region;
 }
 
+/**
+ * Conditions d'un prêt, portées par un compte de type « pret ».
+ *
+ * Le compte du prêt est une dette : son solde initial est le capital emprunté,
+ * en négatif, et chaque mensualité comptabilisée le ramène vers zéro par un
+ * virement du compte de financement (le capital) ; les intérêts et l'assurance
+ * sont une dépense de ce même compte de financement.
+ */
+export interface LoanTerms {
+  principalCents: Cents;          // capital emprunté (positif)
+  /** Taux annuel en centièmes de pour cent : 350 = 3,50 %. */
+  rateBp: number;
+  months: number;                 // durée en mensualités
+  firstPaymentDate: Ymd;          // date de la première mensualité
+  /** Assurance ajoutée à chaque mensualité, hors capital et intérêts (0 si aucune). */
+  insuranceMonthlyCents: Cents;
+  /** Compte courant débité des mensualités. */
+  fundingAccountId: string;
+  /** Catégorie des intérêts et de l'assurance. */
+  interestCategoryId?: string;
+  /** Nombre de mensualités déjà comptabilisées ; évite tout doublon. */
+  postedCount: number;
+  /** true : les mensualités échues sont comptabilisées au lancement. */
+  autoPost: boolean;
+}
+
 export interface Account extends Tracked {
   id: string;
   dbId: string;
@@ -44,6 +70,16 @@ export interface Account extends Tracked {
   startDate: Ymd;
   logo?: string;          // emoji ou dataURL
   archived: boolean;
+  /** Regroupement libre d'affichage (« Banque X », « Épargne »…). */
+  group?: string;
+  /** Numéro ou IBAN, pour s'y retrouver. */
+  number?: string;
+  /** Épinglé en tête des listes. */
+  favorite?: boolean;
+  /** Masqué des listes et du solde total, sans l'archiver ; réversible. */
+  hidden?: boolean;
+  /** Présent uniquement pour un compte de type « pret ». */
+  loan?: LoanTerms;
 }
 
 export interface Payee extends Tracked {   // Tiers

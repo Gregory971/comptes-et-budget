@@ -1,17 +1,41 @@
 import { db, uid, stamp } from './db';
 import type { Account, AccountType, Ymd, Cents } from '../types';
 
+/** Favoris d'abord, puis par groupe (sans groupe en dernier), puis par nom. */
+export function compareAccounts(a: Account, b: Account): number {
+  if (!!a.favorite !== !!b.favorite) return a.favorite ? -1 : 1;
+  const ga = a.group?.trim() ?? '', gb = b.group?.trim() ?? '';
+  if (ga !== gb) {
+    if (!ga) return 1;
+    if (!gb) return -1;
+    return ga.localeCompare(gb, 'fr');
+  }
+  return a.name.localeCompare(b.name, 'fr');
+}
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  courant: 'Compte courant', epargne: 'Épargne', especes: 'Espèces', carte: 'Carte', pret: 'Prêt',
+};
+
+/** Un prêt est une dette, pas de la trésorerie : il n'entre pas dans le solde total. */
+export const isCash = (a: Pick<Account, 'type'>): boolean => a.type !== 'pret';
+
 export const accountService = {
-  /** Comptes actifs par défaut ; les comptes archivés sont exclus partout. */
+  /**
+   * Comptes actifs par défaut ; les comptes archivés ET masqués sont exclus
+   * partout. Avec `includeArchived`, tout est renvoyé — c'est la vue de gestion
+   * de l'écran Comptes. Favoris en tête, puis groupe, puis nom.
+   */
   async list(dbId: string, includeArchived = false): Promise<Account[]> {
     const rows = await db.accounts.where('dbId').equals(dbId).toArray();
-    return (includeArchived ? rows : rows.filter(a => !a.archived))
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    return (includeArchived ? rows : rows.filter(a => !a.archived && !a.hidden))
+      .sort(compareAccounts);
   },
 
   async create(input: {
     dbId: string; name: string; type: AccountType;
     initialBalanceCents: Cents; startDate: Ymd; logo?: string;
+    group?: string; number?: string; favorite?: boolean; hidden?: boolean;
   }): Promise<Account> {
     const acc: Account = { id: uid(), archived: false, updatedAt: stamp(), ...input };
     await db.accounts.add(acc);
@@ -54,9 +78,9 @@ export const accountService = {
     return ops.reduce((s, o) => (o.deletedAt ? s : s + o.amountCents), acc.initialBalanceCents);
   },
 
-  /** Somme des soldes des comptes actifs. */
+  /** Somme des soldes des comptes actifs, hors prêts (dettes). */
   async totalBalance(dbId: string, upTo?: Ymd): Promise<Cents> {
     const [balances, accounts] = await Promise.all([this.balances(dbId, upTo), this.list(dbId)]);
-    return accounts.reduce((s, a) => s + (balances[a.id] ?? 0), 0);
+    return accounts.filter(isCash).reduce((s, a) => s + (balances[a.id] ?? 0), 0);
   },
 };

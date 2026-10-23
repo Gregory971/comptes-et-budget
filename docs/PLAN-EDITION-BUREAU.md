@@ -18,7 +18,7 @@ x64 et ARM64 (`desktop/` → `release/`). Reprise de la sauvegarde : « Restaure
 sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
 
 ## Phases suivantes (ordre de priorité)
-2. Prêts et emprunts (capital, taux, mensualité, durée ; ventilation capital/intérêts),
+2. (faite) Prêts et emprunts (capital, taux, mensualité, durée ; ventilation capital/intérêts),
    groupes de comptes, favoris, comptes masqués.
 3. Devises et taux de change ; ventilation multiple d'une opération ; TVA ; couleurs de catégorie.
 4. Titres et placements (achat, vente, dividendes, frais, plus-values latentes et réalisées,
@@ -32,6 +32,11 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
    graphiques par tiers, projet, évolution des comptes.
 9. Finitions bureau : sauvegarde automatique native dans un dossier, ouverture d'un `.cbjson`
    par double-clic, mise à jour de l'installeur, icône et signature.
+
+10. Optimisation UX / UI, une fois tout implémenté (demande du 23/10/2026) : revue de bout en
+    bout des parcours et de l'interface — cohérence visuelle, densité des écrans, thème
+    sombre, clavier et accessibilité, états vides, retours après action, performances
+    perçues, mobile et fenêtre redimensionnée.
 
 ## Hors périmètre
 Connexion bancaire (Linxo), synchronisation cloud/SFTP du fournisseur, factures plateforme
