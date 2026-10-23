@@ -8,6 +8,7 @@ import { BudgetAlertSettings } from '../components/BudgetAlerts';
 import { IconPicker } from '../components/IconPicker';
 import { SecurityTab } from './SecurityTab';
 import { CurrenciesTab } from './CurrenciesTab';
+import { MaintenanceTab } from './MaintenanceTab';
 import { payeeService, paymentMethodService, categoryService, type RemoveResult } from '../services/referentialService';
 import {
   chooseFile, chooseFolder, forgetFile, run as runAutoBackup,
@@ -22,11 +23,11 @@ import { REGION_LABEL, holidaysOfYear, type Region } from '../utils/holidays';
 import { formatFr } from '../utils/date';
 import type { Category, CategoryGroup, Database } from '../types';
 
-type Tab = 'tiers' | 'categories' | 'modes' | 'devises' | 'general' | 'securite';
+type Tab = 'tiers' | 'categories' | 'modes' | 'devises' | 'maintenance' | 'general' | 'securite';
 
 const TABS: [Tab, string][] = [
   ['tiers', 'Tiers'], ['categories', 'Catégories'],
-  ['modes', 'Modes de paiement'], ['devises', 'Devises'], ['general', 'Général'], ['securite', 'Sécurité'],
+  ['modes', 'Modes de paiement'], ['devises', 'Devises'], ['maintenance', 'Maintenance'], ['general', 'Général'], ['securite', 'Sécurité'],
 ];
 
 export function PreferencesScreen({ database }: { database: Database }) {
@@ -45,6 +46,7 @@ export function PreferencesScreen({ database }: { database: Database }) {
       {tab === 'categories' && <CategoriesTab database={database} />}
       {tab === 'modes' && <ModesTab database={database} />}
       {tab === 'devises' && <CurrenciesTab database={database} />}
+      {tab === 'maintenance' && <MaintenanceTab database={database} />}
       {tab === 'general' && <GeneralTab database={database} />}
       {tab === 'securite' && <SecurityTab />}
     </>

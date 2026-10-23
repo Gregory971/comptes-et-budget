@@ -52,6 +52,28 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   plutôt que de la rendre fausse. Un virement ne se ventile pas.
 - Données : champ facultatif `splits` sur les opérations, aucune migration.
 
+### Maintenance (Préférences → Maintenance)
+
+- **Fusionner des catégories ou des tiers** : l'élément absorbé est remplacé partout
+  — opérations (y compris supprimées, pour ne laisser aucune référence orpheline),
+  parts de ventilation, échéances, règles de classement apprises — puis supprimé.
+  Les budgets de deux catégories fusionnées s'additionnent. Une catégorie de dépense
+  ne se fusionne pas avec une catégorie de recette. Tout se fait en une transaction.
+- **Épurer les tiers inutilisés** depuis une date : ils sont archivés, pas supprimés
+  (l'historique garde leur nom, ils reviennent si on ressaisit leur nom) ; un tiers
+  d'une échéance en cours est épargné. La liste est visible avant de confirmer.
+- **Remplacer en masse** la catégorie, le tiers ou le mode de paiement, par compte et
+  par période, échéances comprises au choix. Aperçu chiffré avant d'agir ; les virements
+  ne sont jamais touchés ; une catégorie de dépense n'est posée que sur des dépenses.
+- **Supprimer des opérations en masse** (compte, période, catégorie, tiers) : les
+  opérations pointées sont gardées par défaut, un virement est supprimé en entier, et
+  il faut taper « SUPPRIMER » (l'écran avertit quand aucun critère ne limite la
+  suppression). Suppression logique : les soldes se recalculent, la sauvegarde exportée
+  reste le moyen de revenir en arrière.
+- Écarté : l'archivage par exercice du logiciel de référence. La base locale supporte
+  sans peine des dizaines de milliers d'opérations, et l'export (CSV, Excel, sauvegarde)
+  couvre le besoin de mettre l'historique de côté sans risquer de fausser les soldes.
+
 ### Échanges : export et import
 
 - **Exporter les opérations** (écran Opérations) en CSV, Excel (.xlsx), QIF ou OFX,
