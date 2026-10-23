@@ -46,6 +46,17 @@ traceur. Montants en euros.
   désigné une fois — celui de OneDrive, Google Drive ou iCloud —, avec une copie
   datée par jour et dix exemplaires conservés (navigateurs Chromium).
 
+## Édition bureau (Windows)
+
+Un installeur Windows (x64 et ARM64, dossier `desktop/`) réunit l'application et ses
+fonctions de bureau : sauvegarde automatique dans un dossier choisi, ouverture d'un
+fichier `.cbjson` par double-clic, liens vers les documents. Les données restent dans le
+profil de l'utilisateur et la page ne contacte aucun serveur. Pour reprendre les données
+de la version web, exportez une sauvegarde `.cbjson` depuis le site puis « Restaurer une
+sauvegarde » au premier lancement. Construction : `cd desktop && node scripts/prepare.cjs
+&& npx electron-builder --win nsis --x64 --arm64` (sortie dans `release/`). Les installeurs
+ne sont pas signés : Windows SmartScreen ou un antivirus peuvent s'y opposer.
+
 ## Installation en application
 
 Ouvrez le site dans Chrome, Edge ou Safari, puis « Installer l'application ».

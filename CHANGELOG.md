@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Version 2.9.0 — édition bureau (en préparation)
+## Version 2.9.0 — édition bureau (23 octobre 2026)
 
 Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
 
@@ -36,6 +36,24 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   sauvegardes à `base_AAAA-MM-JJ.cbjson` (ni chemin, ni `..`, ni extension de programme, ni
   nom réservé de Windows), plafonne la taille, ne supprime que des copies de la même base.
 - Correction trouvée à l'essai : le préchargement convertissait chaque paramètre en texte.
+
+### Ergonomie et interface
+
+- **Rechercher** remonté sous la navigation : au pied de la barre il sortait de l'écran dès
+  768 px de haut et disparaissait sur téléphone. L'action « Rechercher » de l'écran Opérations,
+  qui faisait doublon, devient « Filtrer la liste ».
+- **Thème sombre** : les flèches de mois étaient blanc sur blanc ; en-tête, survol, ligne
+  sélectionnée, barre d'état, pastilles de montant et bandeaux d'aperçu suivent maintenant le
+  thème (teintes passées en variables).
+- Accueil : un virement (capital d'un prêt, par exemple) porte l'icône et le nom « Virement »
+  au lieu d'un « N » et de « Non catégorisé ».
+- Plus de faux « Aucun budget défini » ni « Aucun compte actif » pendant le chargement.
+- Graphiques : un anneau à une seule part (100 % « Sans tiers ») est dessiné — il restait
+  invisible — et les barres d'un mois isolé ne sont plus géantes.
+- Téléphone : les quatre totaux de l'accueil tiennent sur deux colonnes.
+- Le défilement revient en haut à chaque changement d'écran.
+- **Couleur de catégorie** au choix (Préférences → Catégories), « Automatique » gardant la
+  teinte déduite du nom ; conservée par les sauvegardes.
 
 ### Prêts et comptes
 
