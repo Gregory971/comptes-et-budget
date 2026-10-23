@@ -171,3 +171,97 @@ describe('migration v7 → v8 (règles de catégorisation)', () => {
     again.close();
   });
 });
+
+/**
+ * v9 (devises), v10 (placements), v11 (tâches) : trois ajouts de tables, rien n'est
+ * converti. Une base déjà en service — celle de l'utilisateur, importée du site web —
+ * doit s'ouvrir dans l'édition bureau sans perdre une ligne, sans fabriquer de devise,
+ * de titre ni de tâche, et ses comptes doivent rester dans la devise de la base.
+ */
+describe('migration v7 → v11 (devises, placements, tâches)', () => {
+  const V7 = 'migration-v7-v11';
+
+  it('conserve tout, ajoute les tables vides et leurs index, et reste stable', async () => {
+    const legacy = new Dexie(V7);
+    legacy.version(1).stores({
+      databases: 'id', accounts: 'id, dbId', payees: 'id, dbId',
+      categoryGroups: 'id, dbId', categories: 'id, dbId, groupId',
+      paymentMethods: 'id, dbId',
+      operations: 'id, dbId, accountId, date, categoryId', preferences: 'id, dbId',
+    });
+    legacy.version(2).stores({ schedules: 'id, dbId, accountId, nextDate', budgets: 'id, dbId, categoryId' });
+    legacy.version(3).stores({ assets: 'id, dbId', projects: 'id, dbId' });
+    legacy.version(4).stores({
+      operations: 'id, dbId, accountId, date, categoryId, payeeId, transferId, [dbId+date], [accountId+date]',
+      accounts: 'id, dbId, [dbId+archived]',
+      schedules: 'id, dbId, accountId, nextDate, [dbId+nextDate]',
+      budgets: 'id, dbId, categoryId, [dbId+categoryId]',
+      categories: 'id, dbId, groupId, [dbId+groupId]',
+    });
+    legacy.version(5).stores({
+      operations: 'id, dbId, accountId, date, categoryId, payeeId, transferId, assetId, projectId, [dbId+date], [accountId+date]',
+    });
+    legacy.version(6);
+    legacy.version(7).stores({ settings: 'key' });
+    await legacy.open();
+
+    await legacy.table('databases').add({
+      id: 'b1', name: 'Perso', profile: 'perso', currency: 'EUR',
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+      schemaVersion: 6, holidayRegion: 'guadeloupe',
+    });
+    await legacy.table('accounts').add({ id: 'a1', dbId: 'b1', name: 'Courant', type: 'courant', initialBalanceCents: 100000, startDate: '2026-01-01', archived: false, updatedAt: '' });
+    await legacy.table('operations').bulkAdd([
+      { id: 'o1', dbId: 'b1', accountId: 'a1', date: '2026-08-01', amountCents: -9540, kind: 'depense', checked: false, label: 'CARREFOUR MARKET', categoryId: 'c1', createdAt: '', updatedAt: '' },
+      { id: 'o2', dbId: 'b1', accountId: 'a1', date: '2026-08-31', amountCents: 240000, kind: 'recette', checked: true, createdAt: '', updatedAt: '' },
+    ]);
+    await legacy.table('budgets').add({ id: 'bu1', dbId: 'b1', categoryId: 'c1', monthlyAmountCents: 30000, updatedAt: '' });
+    await legacy.table('settings').add({ key: 'theme', value: 'sombre', updatedAt: '' });
+    legacy.close();
+
+    const upgraded = new AppDB(V7);
+    await upgraded.open();
+
+    // Rien de ce qui existait n'est perdu ni modifié.
+    expect(await upgraded.operations.count()).toBe(2);
+    expect((await upgraded.operations.get('o1'))?.amountCents).toBe(-9540);
+    expect((await upgraded.accounts.get('a1'))?.initialBalanceCents).toBe(100000);
+    expect((await upgraded.budgets.get('bu1'))?.monthlyAmountCents).toBe(30000);
+    expect((await upgraded.settings.get('theme'))?.value).toBe('sombre');
+    // Les compte, budget et opération d'avant n'ont ni devise, ni période, ni ventilation, ni document.
+    const compte = await upgraded.accounts.get('a1');
+    expect(compte?.currency).toBeUndefined();
+    expect((await upgraded.budgets.get('bu1'))?.periodMonths).toBeUndefined();
+    expect((await upgraded.operations.get('o1'))?.splits).toBeUndefined();
+    expect((await upgraded.operations.get('o1'))?.documents).toBeUndefined();
+
+    // Les nouvelles tables existent, vides.
+    const noms = upgraded.tables.map(t => t.name);
+    for (const t of ['currencies', 'securities', 'securityTxs', 'securityPrices', 'tasks']) expect(noms).toContain(t);
+    expect(await upgraded.currencies.count()).toBe(0);
+    expect(await upgraded.securities.count()).toBe(0);
+    expect(await upgraded.securityTxs.count()).toBe(0);
+    expect(await upgraded.securityPrices.count()).toBe(0);
+    expect(await upgraded.tasks.count()).toBe(0);
+
+    // Et leurs index sont exploitables.
+    await upgraded.currencies.add({ id: 'cu1', dbId: 'b1', code: 'USD', name: 'Dollar', rate: 0.9, updatedAt: '' });
+    await upgraded.securities.add({ id: 's1', dbId: 'b1', name: 'Alpha', archived: false, updatedAt: '' });
+    await upgraded.securityTxs.add({ id: 't1', dbId: 'b1', securityId: 's1', date: '2026-02-01', type: 'achat', quantity: 1, unitPrice: 10, feesCents: 0, amountCents: 1000, createdAt: '', updatedAt: '' });
+    await upgraded.securityPrices.add({ id: 'p1', dbId: 'b1', securityId: 's1', date: '2026-02-02', price: 11, updatedAt: '' });
+    await upgraded.tasks.add({ id: 'k1', dbId: 'b1', kind: 'tache', text: 'x', done: false, createdAt: '', updatedAt: '' });
+    expect(await upgraded.currencies.where('[dbId+code]').equals(['b1', 'USD']).count()).toBe(1);
+    expect(await upgraded.securityTxs.where('[securityId+date]').between(['s1', '2026-01-01'], ['s1', '2026-12-31'], true, true).count()).toBe(1);
+    expect(await upgraded.securityPrices.where('[securityId+date]').equals(['s1', '2026-02-02']).count()).toBe(1);
+    expect(await upgraded.tasks.where('dbId').equals('b1').count()).toBe(1);
+
+    // Ré-ouverture : la base reste stable.
+    upgraded.close();
+    const again = new AppDB(V7);
+    await again.open();
+    expect(await again.operations.count()).toBe(2);
+    expect(await again.currencies.count()).toBe(1);
+    expect(await again.tasks.count()).toBe(1);
+    again.close();
+  });
+});
