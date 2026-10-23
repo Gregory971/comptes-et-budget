@@ -93,7 +93,7 @@ export function HomeScreen({ database }: { database: Database }) {
             const cat = ref.cat(o.categoryId);
             const virement = !!o.transferId;
             const nom = virement ? 'Virement' : operationCategoryName(o, ref.catName);
-            const h = hueOf(nom);
+            const h = cat?.hue ?? hueOf(nom);
             return (
               <div className="tx" key={o.id}>
                 <span className="tx-chip" aria-hidden="true"

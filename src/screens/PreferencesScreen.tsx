@@ -6,6 +6,7 @@ import { ExportButton } from '../components/ExportButton';
 import { OneDrivePanel } from '../components/OneDrivePanel';
 import { BudgetAlertSettings } from '../components/BudgetAlerts';
 import { IconPicker } from '../components/IconPicker';
+import { HuePicker } from '../components/HuePicker';
 import { SecurityTab } from './SecurityTab';
 import { CurrenciesTab } from './CurrenciesTab';
 import { MaintenanceTab } from './MaintenanceTab';
@@ -218,6 +219,8 @@ function CategoriesTab({ database }: { database: Database }) {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <IconPicker value={c.icon} label={`Icône de la catégorie ${c.name}`}
                     onChange={icon => categoryService.updateCategory(c.id, { icon })} />
+                  <HuePicker value={c.hue} label={`Couleur de la catégorie ${c.name}`}
+                    onChange={hue => categoryService.updateCategory(c.id, { hue })} />
                   {c.name}
                   {c.archived && <span className="chip">archivée</span>}</span>
                 <span style={{ whiteSpace: 'nowrap' }}>

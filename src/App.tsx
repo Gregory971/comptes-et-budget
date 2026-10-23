@@ -71,7 +71,8 @@ export default function App() {
 
   return (
     <Layout>
-      <div className="content-pad">{content}</div>
+      {/* La clé remet le défilement en haut à chaque changement d'écran. */}
+      <div className="content-pad" key={screen}>{content}</div>
       <DueSchedules database={database} />
     </Layout>
   );

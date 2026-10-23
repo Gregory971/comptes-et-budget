@@ -165,6 +165,8 @@ export interface CategoryGroup extends Tracked {
 export interface Category extends Tracked {
   id: string; dbId: string; groupId: string;
   name: string; icon?: string; archived: boolean;
+  /** Teinte choisie (0–359) ; absente = teinte dérivée du nom. */
+  hue?: number;
 }
 
 export interface PaymentMethod extends Tracked {
