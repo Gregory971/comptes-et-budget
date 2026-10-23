@@ -2,7 +2,7 @@ import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   Database, Account, Payee, CategoryGroup, Category,
   PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project, Setting,
-  CategorizationRule,
+  CategorizationRule, Currency,
 } from '../types';
 import { normalizeYmd, today } from '../utils/date';
 import { toCents } from '../utils/money';
@@ -25,6 +25,8 @@ export class AppDB extends Dexie {
   projects!: Table<Project, string>;
   /** Règles de catégorisation apprises à l'import de relevés (incluses dans la sauvegarde). */
   categorizationRules!: Table<CategorizationRule, string>;
+  /** Devises étrangères et leur taux (incluses dans la sauvegarde). */
+  currencies!: Table<Currency, string>;
   /** Réglages propres à l'appareil : jamais exportés dans la sauvegarde. */
   settings!: Table<Setting, string>;
 
@@ -77,6 +79,10 @@ export class AppDB extends Dexie {
     // aucune donnée existante n'est convertie, les bases déjà en place gardent
     // tout leur contenu et démarrent avec zéro règle.
     this.version(8).stores({ categorizationRules: 'id, dbId, [dbId+pattern]' });
+    // v9 : devises étrangères. Simple ajout de table, comme la v8 : les bases
+    // existantes démarrent sans devise et tous leurs comptes restent dans la
+    // devise de la base.
+    this.version(9).stores({ currencies: 'id, dbId, [dbId+code]' });
   }
 }
 

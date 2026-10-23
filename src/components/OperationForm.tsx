@@ -3,8 +3,10 @@ import { useReferentials, usePatrimoine } from '../hooks/useData';
 import { payeeService } from '../services/referentialService';
 import { MoneyInput } from './MoneyInput';
 import { PayeeField } from './PayeeField';
+import { SplitEditor, newSplitRow, type SplitRow } from './SplitEditor';
+import { validateSplits } from '../utils/splits';
 import { today, type Ymd } from '../utils/date';
-import type { Kind, Cents, Account } from '../types';
+import type { Kind, Cents, Account, OperationSplit } from '../types';
 import type { OperationInput } from '../services/operationService';
 
 export interface OpFormInitial {
@@ -12,6 +14,8 @@ export interface OpFormInitial {
   payeeId?: string; categoryId?: string; paymentMethodId?: string;
   label?: string; reference?: string; note?: string;
   assetId?: string; projectId?: string;
+  /** Ventilation existante (montants signés, comme stockés). */
+  splits?: OperationSplit[];
 }
 
 /** Formulaire réutilisable : ajout, édition, duplication d'une opération. */
@@ -33,6 +37,10 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
   // Le tiers est saisi librement ; il n'est résolu en identifiant qu'à l'enregistrement.
   const [payeeName, setPayeeName] = useState('');
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '');
+  // Ventilation : lignes en montants positifs, quel que soit le sens de l'opération.
+  const [splitRows, setSplitRows] = useState<SplitRow[]>(
+    () => (initial?.splits ?? []).map(p => newSplitRow(p.categoryId ?? '', Math.abs(p.amountCents))));
+  const [splitting, setSplitting] = useState((initial?.splits?.length ?? 0) > 1);
   const [paymentMethodId, setPaymentMethodId] = useState(initial?.paymentMethodId ?? '');
   const [label, setLabel] = useState(initial?.label ?? '');
   const [reference, setReference] = useState(initial?.reference ?? '');
@@ -60,6 +68,7 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
   }
 
   const visibleCats = ref.catsForKind(kind === 'recette' ? 'recette' : 'depense');
+  const devise = accounts.find(a => a.id === accountId)?.currency;
 
   async function submit() {
     // Correction P2 : les gardes se contentaient d'un « return » silencieux —
@@ -67,12 +76,21 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
     if (amountCents === null || amountCents <= 0) { setError('Indiquez un montant supérieur à zéro (exemple : 12,50).'); return; }
     if (!accountId) { setError('Sélectionnez un compte.'); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { setError('La date est invalide.'); return; }
+    let splits: OperationSplit[] | undefined;
+    if (splitting) {
+      if (splitRows.some(r => r.amountCents === null)) { setError('Chaque ligne de la ventilation a besoin d’un montant valide.'); return; }
+      splits = splitRows.map(r => ({ categoryId: r.categoryId || undefined, amountCents: r.amountCents as Cents }));
+      // Les parts sont positives ici ; le service leur applique le sens de l'opération.
+      const problem = validateSplits(amountCents, splits);
+      if (problem) { setError(problem); return; }
+    }
     setError(null); setBusy(true);
     try {
       const payeeId = await payeeService.resolveByName(dbId, payeeName);
       await onSubmit({
         accountId, date, amountCents, kind,
-        payeeId, categoryId: categoryId || undefined,
+        payeeId, categoryId: splitting ? undefined : categoryId || undefined,
+        splits,
         paymentMethodId: paymentMethodId || undefined,
         label: label.trim() || undefined,
         reference: reference.trim() || undefined,
@@ -92,15 +110,15 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
       <div className="inline" role="group" aria-label="Type d’opération">
         <button type="button" className={'btn ' + (kind === 'depense' ? '' : 'ghost')}
           aria-pressed={kind === 'depense'}
-          onClick={() => { setKind('depense'); setCategoryId(''); }}>Dépense</button>
+          onClick={() => { setKind('depense'); setCategoryId(''); setSplitRows(rs => rs.map(r => ({ ...r, categoryId: '' }))); }}>Dépense</button>
         <button type="button" className={'btn ' + (kind === 'recette' ? '' : 'ghost')}
           aria-pressed={kind === 'recette'}
-          onClick={() => { setKind('recette'); setCategoryId(''); }}>Recette</button>
+          onClick={() => { setKind('recette'); setCategoryId(''); setSplitRows(rs => rs.map(r => ({ ...r, categoryId: '' }))); }}>Recette</button>
       </div>
       <div className="grid two">
         <div className="field"><label htmlFor="op-date">Quand — date</label>
           <input id="op-date" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-        <MoneyInput label="Combien — montant (€)" valueCents={amountCents} onChange={setAmountCents} required />
+        <MoneyInput label={`Combien — montant (${devise ?? '€'})`} valueCents={amountCents} onChange={setAmountCents} required />
       </div>
       <div className="grid two">
         <div className="field"><label htmlFor="op-acc">Compte</label>
@@ -110,15 +128,36 @@ export function OperationForm({ dbId, accounts, initial, submitLabel, onSubmit, 
       </div>
       <div className="grid two">
         <div className="field"><label htmlFor="op-cat">Pourquoi — catégorie</label>
-          <select id="op-cat" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-            <option value="">—</option>
-            {visibleCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select></div>
+          {splitting ? (
+            <div className="muted" style={{ padding: '8px 0' }}>
+              Ventilée sur {splitRows.length} lignes.{' '}
+              <button type="button" className="linklike" onClick={() => {
+                // Retour à une catégorie unique : on garde celle de la première ligne.
+                setCategoryId(splitRows[0]?.categoryId ?? ''); setSplitting(false);
+              }}>Revenir à une catégorie</button>
+            </div>
+          ) : (
+            <>
+              <select id="op-cat" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                <option value="">—</option>
+                {visibleCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select>
+              <button type="button" className="linklike" style={{ marginTop: 4, textAlign: 'left' }}
+                onClick={() => {
+                  setSplitRows([newSplitRow(categoryId), newSplitRow()]);
+                  setSplitting(true);
+                }}>Ventiler sur plusieurs catégories</button>
+            </>
+          )}
+        </div>
         <div className="field"><label htmlFor="op-pm">Comment — mode de paiement</label>
           <select id="op-pm" value={paymentMethodId} onChange={e => setPaymentMethodId(e.target.value)}>
             <option value="">—</option>
             {ref.methods.filter(m => !m.archived || m.id === paymentMethodId)
               .map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
       </div>
+      {splitting && (
+        <SplitEditor rows={splitRows} onChange={setSplitRows} categories={visibleCats} totalCents={amountCents} />
+      )}
       <div className="grid two">
         <div className="field"><label htmlFor="op-link">Projet / Bien</label>
           <select id="op-link" value={linkId} onChange={e => setLinkId(e.target.value)}>

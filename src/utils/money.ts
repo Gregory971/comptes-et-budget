@@ -39,6 +39,15 @@ const INT = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 /** « 1 234,56 € » */
 export const formatEur = (cents: Cents): string => EUR.format(toEuros(cents || 0));
+/** Montant dans une devise donnée (« 12,00 US$ ») ; l'euro par défaut. */
+export function formatMoney(cents: Cents, currency = 'EUR'): string {
+  if (currency === 'EUR') return formatEur(cents);
+  try {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(toEuros(cents || 0));
+  } catch {
+    return `${NUM.format(toEuros(cents || 0))} ${currency}`;   // code inconnu d'Intl
+  }
+}
 /** « 1 234,56 » (sans symbole, pour les colonnes chiffrées) */
 export const formatNum = (cents: Cents): string => NUM.format(toEuros(cents || 0));
 /** « 1 235 » (axes de graphiques) */

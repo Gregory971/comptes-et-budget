@@ -1,5 +1,6 @@
 import { operationService } from './operationService';
 import { accountService } from './accountService';
+import { convert, currencyService } from './currencyService';
 import { budgetService } from './budgetService';
 import { scheduleService, advance, anchorOf } from './scheduleService';
 import { categoryService } from './referentialService';
@@ -67,7 +68,7 @@ export const forecastService = {
     const { from, to } = monthRange(anchor.getFullYear(), anchor.getMonth());
     const previous = previousDay(from);
 
-    const [operations, openingCents, schedules, budgets, spent, cats] = await Promise.all([
+    const [operations, openingCents, schedules, budgets, spent, cats, rates] = await Promise.all([
       operationService.list(dbId, { accountId, from, to }),
       accountId
         ? accountService.balance(accountId, previous)
@@ -76,10 +77,17 @@ export const forecastService = {
       budgetService.list(dbId),
       budgetService.spentByCategory(dbId, anchor),
       categoryService.listCategories(dbId, true),
+      currencyService.rates(dbId),
     ]);
 
+    // Un compte seul reste dans sa devise ; plusieurs comptes sont ramenés à la devise
+    // de la base. Les budgets, eux, sont toujours dans la devise de la base.
+    const k = (id: string) => (accountId ? 1 : rates[id] ?? 1);
+    const kBase = (id: string) => rates[id] ?? 1;
+    const budgetApplies = !accountId || (rates[accountId] ?? 1) === 1;
+
     const chrono = [...operations].sort((a, b) => a.date.localeCompare(b.date));
-    const actualCents = chrono.reduce((s, o) => s + o.amountCents, openingCents);
+    const actualCents = chrono.reduce((s, o) => s + convert(o.amountCents, k(o.accountId)), openingCents);
     const catName = (id?: string) => cats.find(c => c.id === id)?.name ?? 'Sans catégorie';
 
     // --- 1. Échéances à venir, jusqu'à la fin du mois observé.
@@ -103,7 +111,7 @@ export const forecastService = {
             id: `s:${s.id}:${planned}`,
             kind: 'echeance',
             date: effective,
-            amountCents: s.amountCents,
+            amountCents: convert(s.amountCents, k(s.accountId)),
             label: s.label ?? catName(s.categoryId),
             categoryId: s.categoryId,
             payeeId: s.payeeId,
@@ -114,7 +122,7 @@ export const forecastService = {
           });
           if (s.categoryId && s.amountCents < 0) {
             scheduledByCategory[s.categoryId] =
-              (scheduledByCategory[s.categoryId] ?? 0) + -s.amountCents;
+              (scheduledByCategory[s.categoryId] ?? 0) + -convert(s.amountCents, kBase(s.accountId));
           }
         }
         if (s.periodicity === 'unique') break;
@@ -124,7 +132,7 @@ export const forecastService = {
 
     // --- 2. Reste à consommer des budgets, hors part déjà couverte par une échéance.
     let budgetRemainingCents = 0;
-    for (const b of budgets) {
+    for (const b of budgetApplies ? budgets : []) {
       const already = spent[b.categoryId] ?? 0;
       const planned = scheduledByCategory[b.categoryId] ?? 0;
       const remaining = b.monthlyAmountCents - already - planned;

@@ -2,6 +2,8 @@ import { operationService } from './operationService';
 import { accountService } from './accountService';
 import { categoryService } from './referentialService';
 import { ymd, lastDayOfMonth, monthLabel, monthKey, type Ymd } from '../utils/date';
+import { categoryParts } from '../utils/splits';
+import { convertOperations, currencyService } from './currencyService';
 import type { Cents } from '../types';
 
 export type Granularity = 'mois' | 'trimestre' | 'annee';
@@ -53,10 +55,13 @@ export interface ReportData {
 
 export const reportService = {
   async build(dbId: string, accountId: string | undefined, range: Range): Promise<ReportData> {
-    const [ops, cats] = await Promise.all([
+    const [rawOps, cats, rates] = await Promise.all([
       operationService.list(dbId, { accountId, from: range.from, to: range.to }),
       categoryService.listCategories(dbId, true),
+      currencyService.rates(dbId),
     ]);
+    // Un compte seul reste dans sa devise ; plusieurs comptes sont ramenés à la devise de la base.
+    const ops = accountId ? rawOps : convertOperations(rawOps, rates);
     const catName = (id?: string) => cats.find(c => c.id === id)?.name ?? 'Sans catégorie';
 
     let recettesCents = 0, depensesCents = 0;
@@ -74,8 +79,10 @@ export const reportService = {
       } else {
         depensesCents += -o.amountCents;
         monthMap[mk].depensesCents += -o.amountCents;
-        const key = catName(o.categoryId);
-        catMap[key] = (catMap[key] ?? 0) + -o.amountCents;
+        for (const p of categoryParts(o)) {
+          const key = catName(p.categoryId);
+          catMap[key] = (catMap[key] ?? 0) + -p.amountCents;
+        }
       }
     }
 

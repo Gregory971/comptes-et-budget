@@ -80,6 +80,20 @@ export interface Account extends Tracked {
   hidden?: boolean;
   /** Présent uniquement pour un compte de type « pret ». */
   loan?: LoanTerms;
+  /**
+   * Code de la devise du compte (« USD »). Absent : devise de la base. Voir
+   * src/services/currencyService.ts pour la règle de conversion.
+   */
+  currency?: string;
+}
+
+/** Devise étrangère de la base, avec son taux de change vers la devise de la base. */
+export interface Currency extends Tracked {
+  id: string; dbId: string;
+  code: string;      // ISO 4217, « USD »
+  name: string;
+  /** Valeur d'UNE unité de cette devise en devise de la base (1 USD = 0,92 → 0.92). */
+  rate: number;
 }
 
 export interface Payee extends Tracked {   // Tiers
@@ -102,13 +116,27 @@ export interface PaymentMethod extends Tracked {
   id: string; dbId: string; name: string; archived: boolean;
 }
 
+/** Part d'une ventilation multiple : une catégorie et son montant, signé comme l'opération. */
+export interface OperationSplit {
+  categoryId?: string;
+  amountCents: Cents;
+  note?: string;
+}
+
 export interface Operation extends Tracked {
   id: string; dbId: string; accountId: string;
   date: Ymd;
   amountCents: Cents;      // signé : négatif pour une dépense
   kind: Kind;
   payeeId?: string;
+  /** Absent quand l'opération est ventilée : voir `splits`. */
   categoryId?: string;
+  /**
+   * Ventilation multiple : répartition du montant sur plusieurs catégories (au
+   * moins deux parts, dont la somme égale `amountCents`). Quand elle est
+   * présente, `categoryId` est vide. Voir src/utils/splits.ts.
+   */
+  splits?: OperationSplit[];
   paymentMethodId?: string;
   label?: string;
   reference?: string;      // n° de chèque, référence de virement…

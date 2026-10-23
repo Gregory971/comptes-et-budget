@@ -1,14 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useStore } from '../store/useStore';
-import { useAccounts, useBalances, useReferentials } from '../hooks/useData';
+import { useAccounts, useBalances, useRates, useReferentials } from '../hooks/useData';
 import { operationService } from '../services/operationService';
 import { ACCOUNT_TYPE_LABEL, isCash } from '../services/accountService';
 import { periodRange, reportService } from '../services/reportService';
 import { scheduleService } from '../services/scheduleService';
 import { BudgetAlertBanner } from '../components/BudgetAlerts';
-import { formatEur } from '../utils/money';
+import { formatEur, formatMoney } from '../utils/money';
+import { convert } from '../services/currencyService';
 import { formatFr, today } from '../utils/date';
 import { hueOf } from '../utils/hue';
+import { operationCategoryName } from '../utils/splits';
 import type { Database } from '../types';
 
 /**
@@ -27,6 +29,7 @@ export function HomeScreen({ database }: { database: Database }) {
   const setScreen = useStore(s => s.setScreen);
   const accounts = useAccounts(dbId);
   const balances = useBalances(dbId);
+  const rates = useRates(dbId);
   const ref = useReferentials(dbId);
   const recent = useLiveQuery(() => operationService.recent(dbId, 6), [dbId], []) ?? [];
 
@@ -43,7 +46,8 @@ export function HomeScreen({ database }: { database: Database }) {
       .slice(0, 4);
   }, [dbId, now], []) ?? [];
 
-  const total = accounts.filter(isCash).reduce((s, a) => s + (balances[a.id] ?? a.initialBalanceCents), 0);
+  const total = accounts.filter(isCash).reduce(
+    (s, a) => s + convert(balances[a.id] ?? a.initialBalanceCents, rates[a.id] ?? 1), 0);
 
   return (
     <>
@@ -86,7 +90,7 @@ export function HomeScreen({ database }: { database: Database }) {
           </div>
           {recent.map(o => {
             const cat = ref.cat(o.categoryId);
-            const nom = ref.catName(o.categoryId);
+            const nom = operationCategoryName(o, ref.catName);
             const h = hueOf(nom);
             return (
               <div className="tx" key={o.id}>
@@ -134,7 +138,8 @@ export function HomeScreen({ database }: { database: Database }) {
             <div className="acc" key={a.id}>
               <div className="acc-type">{ACCOUNT_TYPE_LABEL[a.type]}</div>
               <div className="acc-name"><span aria-hidden="true">{a.logo ?? '🏦'}</span> {a.name}</div>
-              <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatEur(solde)}</div>
+              <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatMoney(solde, a.currency)}</div>
+              {a.currency && <div className="muted" style={{ fontSize: 12 }}>≈ {formatEur(convert(solde, rates[a.id] ?? 1))}</div>}
             </div>
           );
         })}

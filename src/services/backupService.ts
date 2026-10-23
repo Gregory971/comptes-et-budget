@@ -5,7 +5,7 @@ import { toCents } from '../utils/money';
 import { normalizeYmd, today, toYmd } from '../utils/date';
 import type {
   Database, Account, Payee, CategoryGroup, Category, PaymentMethod,
-  Operation, Preferences, Schedule, Budget, Asset, Project, CategorizationRule,
+  Operation, Preferences, Schedule, Budget, Asset, Project, CategorizationRule, Currency,
 } from '../types';
 
 export const BACKUP_VERSION = 3;
@@ -33,6 +33,8 @@ export interface Backup {
    * simplement ce champ). Absent d'un fichier antérieur — voir OPTIONAL_TABLES.
    */
   categorizationRules?: CategorizationRule[];
+  /** Devises étrangères (ajoutées après la v3 du format : absentes d'un fichier antérieur). */
+  currencies?: Currency[];
 }
 
 type TableName = Exclude<keyof Backup, 'format' | 'version' | 'schemaVersion' | 'exportedAt' | 'database'>;
@@ -55,6 +57,7 @@ const TABLE_MAP = {
   assets: () => db.assets,
   projects: () => db.projects,
   categorizationRules: () => db.categorizationRules,
+  currencies: () => db.currencies,
 } as const satisfies Record<TableName, () => { name: string }>;
 
 const TABLES = Object.keys(TABLE_MAP) as TableName[];
@@ -66,7 +69,7 @@ const TABLES = Object.keys(TABLE_MAP) as TableName[];
  * suppression (les règles apprises ne doivent pas disparaître parce qu'on
  * restaure un fichier d'avant leur existence). Un tableau vide, lui, vide bien.
  */
-const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>(['categorizationRules']);
+const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>(['categorizationRules', 'currencies']);
 
 type AnyRow = { id: string; dbId: string; updatedAt?: string };
 const tableOf = (name: TableName) =>
@@ -356,5 +359,6 @@ export function upgradeBackup(b: Backup): Backup {
     preferences: (b.preferences ?? []).map(p => row({ ...p })),
     // Optionnel : laissé absent plutôt que forcé à [] (voir OPTIONAL_TABLES).
     ...(b.categorizationRules ? { categorizationRules: b.categorizationRules.map(r => row({ ...r })) } : {}),
+    ...(b.currencies ? { currencies: b.currencies.map(c => row({ ...c })) } : {}),
   };
 }

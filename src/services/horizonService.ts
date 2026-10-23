@@ -12,6 +12,7 @@
 // qui n'existe peut-être pas.
 
 import { accountService } from './accountService';
+import { convert, currencyService } from './currencyService';
 import { budgetService } from './budgetService';
 import { scheduleService, advance, anchorOf } from './scheduleService';
 import { applyHolidayRule, type Region } from '../utils/holidays';
@@ -51,7 +52,7 @@ interface Occurrence { date: Ymd; amountCents: Cents }
 async function occurrences(
   dbId: string, accountId: string | undefined, from: Ymd, to: Ymd, region: Region,
 ): Promise<Occurrence[]> {
-  const schedules = await scheduleService.list(dbId);
+  const [schedules, rates] = await Promise.all([scheduleService.list(dbId), currencyService.rates(dbId)]);
   const out: Occurrence[] = [];
   for (const s of schedules) {
     if (!s.active) continue;
@@ -63,7 +64,8 @@ async function occurrences(
       if (s.endDate && planned > s.endDate) break;
       const effective = applyHolidayRule(planned, s.holidayRule, region);
       if (effective >= from && effective <= to) {
-        out.push({ date: effective, amountCents: s.amountCents });
+        // Un compte seul reste dans sa devise ; plusieurs comptes sont ramenés à celle de la base.
+        out.push({ date: effective, amountCents: accountId ? s.amountCents : convert(s.amountCents, rates[s.accountId] ?? 1) });
       }
       if (s.periodicity === 'unique') break;
       planned = advance(planned, s.periodicity, anchorOf(s));
@@ -88,16 +90,20 @@ export async function buildHorizon(
   const [ly, lm] = dernier.split('-').map(Number);
   const to = `${dernier.slice(0, 8)}${String(lastDayOfMonth(ly, lm - 1)).padStart(2, '0')}`;
 
-  const [depart, ops, budgets] = await Promise.all([
+  const [depart, ops, budgets, rates] = await Promise.all([
     accountId ? accountService.balance(accountId, at) : accountService.totalBalance(dbId, at),
     occurrences(dbId, accountId, at, to, region),
     budgetService.list(dbId),
+    currencyService.rates(dbId),
   ]);
+  // Les budgets sont dans la devise de la base : on ne les applique pas à un compte étranger seul.
+  const budgetApplies = !accountId || (rates[accountId] ?? 1) === 1;
   // Enveloppe budgétaire mensuelle : appliquée telle quelle aux mois à venir.
-  const budgetMensuel = budgets.reduce((s, b) => s + b.monthlyAmountCents, 0);
+  const budgetMensuel = budgetApplies ? budgets.reduce((s, b) => s + b.monthlyAmountCents, 0) : 0;
   // Mois en cours : seule la part non encore dépensée reste à prévoir.
-  const dejaDepense = Object.values(await budgetService.spentByCategory(dbId, new Date(y, m - 1, 15)))
-    .reduce((s, v) => s + v, 0);
+  const dejaDepense = budgetApplies
+    ? Object.values(await budgetService.spentByCategory(dbId, new Date(y, m - 1, 15))).reduce((s, v) => s + v, 0)
+    : 0;
 
   const resultat: HorizonMonth[] = [];
   let solde = depart;

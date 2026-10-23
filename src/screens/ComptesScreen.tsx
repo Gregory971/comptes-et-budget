@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useAccounts, useBalances } from '../hooks/useData';
+import { useAccounts, useBalances, useCurrencies, useRates } from '../hooks/useData';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ReconcileModal } from '../components/ReconcileModal';
 import { LoanDetailModal, LoanModal } from '../components/LoanModals';
 import { MoneyInput } from '../components/MoneyInput';
 import { ACCOUNT_TYPE_LABEL as TYPE_LABEL, accountService, isCash } from '../services/accountService';
 import { loanService } from '../services/loanService';
-import { formatEur, type Cents } from '../utils/money';
+import { formatEur, formatMoney, type Cents } from '../utils/money';
+import { convert } from '../services/currencyService';
 import { formatFr, today, type Ymd } from '../utils/date';
 import type { Account, AccountType, Database } from '../types';
 
@@ -14,6 +15,7 @@ export function ComptesScreen({ database }: { database: Database }) {
   const dbId = database.id;
   const accounts = useAccounts(dbId, true);
   const balances = useBalances(dbId);
+  const rates = useRates(dbId);
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
   const [creatingLoan, setCreatingLoan] = useState(false);
@@ -62,7 +64,8 @@ export function ComptesScreen({ database }: { database: Database }) {
                   <span aria-hidden="true">{a.logo ?? '🏦'}</span> {a.name}
                   {a.favorite && <span title="Favori" aria-label="Favori"> ⭐</span>}
                 </div>
-                <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatEur(solde)}</div>
+                <div className={'acc-val ' + (solde < 0 ? 'neg' : '')}>{formatMoney(solde, a.currency)}</div>
+                {a.currency && <div className="muted" style={{ fontSize: 12 }}>≈ {formatEur(convert(solde, rates[a.id] ?? 1))}</div>}
               </div>
             );
           })}
@@ -90,7 +93,7 @@ export function ComptesScreen({ database }: { database: Database }) {
                 </td>
                 <td>{a.group ?? ''}</td>
                 <td><span className="chip">{TYPE_LABEL[a.type]}</span></td>
-                <td style={{ textAlign: 'right' }}>{formatEur(balances[a.id] ?? a.initialBalanceCents)}</td>
+                <td style={{ textAlign: 'right' }}>{formatMoney(balances[a.id] ?? a.initialBalanceCents, a.currency)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn ghost" onClick={() => setReconciling(a)}
                     title="Comparer le solde du relevé au total des opérations pointées"
@@ -206,6 +209,8 @@ export function ComptesScreen({ database }: { database: Database }) {
 
 function AccountModal({ dbId, account, onClose }: { dbId: string; account?: Account; onClose: () => void }) {
   const isLoan = account?.type === 'pret';
+  const devises = useCurrencies(dbId);
+  const [currency, setCurrency] = useState(account?.currency ?? '');
   const [name, setName] = useState(account?.name ?? '');
   const [type, setType] = useState<AccountType>(account?.type ?? 'courant');
   const [logo, setLogo] = useState(account?.logo ?? '🏦');
@@ -230,7 +235,7 @@ function AccountModal({ dbId, account, onClose }: { dbId: string; account?: Acco
       // Le solde initial d'un prêt découle de ses conditions : on n'y touche pas.
       await accountService.update(account.id, isLoan ? common : { ...common, type, initialBalanceCents: initial });
     } else {
-      await accountService.create({ dbId, type, initialBalanceCents: initial, ...common });
+      await accountService.create({ dbId, type, initialBalanceCents: initial, currency: currency || undefined, ...common });
     }
     onClose();
   }
@@ -258,7 +263,17 @@ function AccountModal({ dbId, account, onClose }: { dbId: string; account?: Acco
         <div className="field"><label htmlFor="ac-number">Numéro de compte</label>
           <input id="ac-number" value={number} onChange={e => setNumber(e.target.value)} /></div>
       </div>
-      {!isLoan && <MoneyInput label="Solde initial (€)" valueCents={initial} onChange={setInitial} allowNegative />}
+      {!isLoan && (devises.length > 0 || account?.currency) && (
+        <div className="field"><label htmlFor="ac-cur">Devise</label>
+          <select id="ac-cur" value={currency} disabled={!!account} onChange={e => setCurrency(e.target.value)}>
+            <option value="">Devise de la base</option>
+            {devises.map(c => <option key={c.id} value={c.code}>{c.code} — {c.name}</option>)}
+            {account?.currency && !devises.some(c => c.code === account.currency) && <option value={account.currency}>{account.currency}</option>}
+          </select>
+          {account && <small className="muted">La devise ne peut plus changer une fois le compte créé.</small>}
+        </div>
+      )}
+      {!isLoan && <MoneyInput label={`Solde initial (${currency || '€'})`} valueCents={initial} onChange={setInitial} allowNegative />}
 
       <label className="inline-check">
         <input type="checkbox" checked={favorite} onChange={e => setFavorite(e.target.checked)} />

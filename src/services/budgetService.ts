@@ -1,5 +1,7 @@
 import { db, uid, stamp } from './db';
 import { monthRange } from '../utils/date';
+import { categoryParts } from '../utils/splits';
+import { convert, currencyService } from './currencyService';
 import type { Budget, Cents } from '../types';
 
 /** Ligne de suivi d'un budget pour le mois courant. */
@@ -35,13 +37,20 @@ export const budgetService = {
    */
   async spentByCategory(dbId: string, anchor = new Date()): Promise<Record<string, Cents>> {
     const { from, to } = monthRange(anchor.getFullYear(), anchor.getMonth());
-    const ops = await db.operations.where('[dbId+date]')
-      .between([dbId, from], [dbId, to], true, true).toArray();
+    const [ops, rates] = await Promise.all([
+      db.operations.where('[dbId+date]').between([dbId, from], [dbId, to], true, true).toArray(),
+      currencyService.rates(dbId),
+    ]);
     const out: Record<string, Cents> = {};
     for (const o of ops) {
       // Les virements ne sont pas des dépenses : ils sortent du suivi budgétaire.
-      if (o.deletedAt || o.kind === 'virement' || o.amountCents >= 0 || !o.categoryId) continue;
-      out[o.categoryId] = (out[o.categoryId] ?? 0) - o.amountCents;
+      if (o.deletedAt || o.kind === 'virement' || o.amountCents >= 0) continue;
+      // Une opération ventilée pèse sur chacune de ses catégories, pour sa part.
+      const k = rates[o.accountId] ?? 1;   // les budgets sont en devise de la base
+      for (const p of categoryParts(o)) {
+        if (!p.categoryId || p.amountCents >= 0) continue;
+        out[p.categoryId] = (out[p.categoryId] ?? 0) - convert(p.amountCents, k);
+      }
     }
     return out;
   },

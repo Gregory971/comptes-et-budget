@@ -17,6 +17,7 @@ export function TransferForm({ dbId, accounts, onDone, onCancel }: {
   const ref = useReferentials(dbId);
   const [date, setDate] = useState<Ymd>(today());
   const [amountCents, setAmountCents] = useState<Cents | null>(null);
+  const [receivedCents, setReceivedCents] = useState<Cents | null>(null);
   const [fromAccountId, setFrom] = useState(accounts[0]?.id ?? '');
   const [toAccountId, setTo] = useState(accounts[1]?.id ?? '');
   const [paymentMethodId, setPm] = useState('');
@@ -29,14 +30,21 @@ export function TransferForm({ dbId, accounts, onDone, onCancel }: {
   if (!fromAccountId && accounts.length > 0) setFrom(accounts[0].id);
   if (!toAccountId && accounts.length > 1) setTo(accounts[1].id);
 
+  const from = accounts.find(a => a.id === fromAccountId);
+  const to = accounts.find(a => a.id === toAccountId);
+  // Devises différentes : le montant reçu est celui que la banque a réellement crédité.
+  const crossCurrency = !!from && !!to && (from.currency ?? '') !== (to.currency ?? '');
+
   async function submit() {
     if (amountCents === null || amountCents <= 0) { setError('Indiquez un montant supérieur à zéro.'); return; }
     if (!fromAccountId || !toAccountId) { setError('Sélectionnez les deux comptes.'); return; }
     if (fromAccountId === toAccountId) { setError('Le compte source et le compte destinataire doivent être différents.'); return; }
+    if (crossCurrency && (receivedCents === null || receivedCents <= 0)) { setError('Les deux comptes n’ont pas la même devise : indiquez le montant reçu.'); return; }
     setError(null); setBusy(true);
     try {
       await transferService.create({
         dbId, fromAccountId, toAccountId, date, amountCents,
+        receivedAmountCents: crossCurrency ? receivedCents ?? undefined : undefined,
         label: label.trim() || undefined, paymentMethodId: paymentMethodId || undefined,
       });
       onDone();
@@ -56,7 +64,7 @@ export function TransferForm({ dbId, accounts, onDone, onCancel }: {
       <div className="grid two">
         <div className="field"><label htmlFor="tr-date">Date</label>
           <input id="tr-date" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-        <MoneyInput label="Montant (€)" valueCents={amountCents} onChange={setAmountCents} required autoFocus />
+        <MoneyInput label={`Montant (${from?.currency ?? '€'})`} valueCents={amountCents} onChange={setAmountCents} required autoFocus />
       </div>
       <div className="grid two">
         <div className="field"><label htmlFor="tr-from">Du compte</label>
@@ -66,6 +74,14 @@ export function TransferForm({ dbId, accounts, onDone, onCancel }: {
           <select id="tr-to" value={toAccountId} onChange={e => setTo(e.target.value)}>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
       </div>
+      {crossCurrency && (
+        <div className="grid two">
+          <MoneyInput label={`Montant reçu (${to?.currency ?? '€'})`} valueCents={receivedCents} onChange={setReceivedCents} required />
+          <p className="muted" style={{ fontSize: 12, alignSelf: 'end', margin: 0 }}>
+            Les comptes n’ont pas la même devise : saisissez la somme réellement créditée par la banque.
+          </p>
+        </div>
+      )}
       <div className="grid two">
         <div className="field"><label htmlFor="tr-pm">Mode de paiement</label>
           <select id="tr-pm" value={paymentMethodId} onChange={e => setPm(e.target.value)}>

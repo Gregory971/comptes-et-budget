@@ -37,6 +37,43 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
 - Limite : les conditions d'un prêt ne se modifient pas après création
   (supprimer et recréer).
 
+### Ventilation multiple
+
+- Une opération peut être répartie sur plusieurs catégories (87 € = 60 €
+  d'alimentation + 27 € d'entretien). Éditeur dans le formulaire d'opération
+  avec « reste à ventiler » en continu et report du reste sur la dernière ligne ;
+  la somme des parts doit égaler le montant au centime près, avec un message qui
+  dit ce qui manque ou dépasse.
+- Le solde du compte ne dépend que du montant. Les budgets, les alertes de budget
+  et les bilans par catégorie comptent chaque part dans sa catégorie ; la
+  recherche et le filtre par catégorie retrouvent l'opération par n'importe
+  laquelle de ses parts. Affichée « Ventilée (n) » dans les listes.
+- Changer le montant d'une opération ventilée sans sa ventilation est refusé
+  plutôt que de la rendre fausse. Un virement ne se ventile pas.
+- Données : champ facultatif `splits` sur les opérations, aucune migration.
+
+### Devises
+
+- Devises étrangères et taux de change vers la devise de la base, saisis à la
+  main (Préférences → Devises) : aucune requête réseau, pas d'historique des taux.
+- Chaque compte est tenu dans sa devise, choisie à la création (non modifiable
+  ensuite). Soldes et opérations d'un compte restent dans sa devise ; les cartes
+  affichent aussi l'équivalent dans la devise de la base.
+- Toute vue qui réunit plusieurs comptes est en devise de la base : solde total,
+  bilans, budgets, alertes, prévisions du mois, horizon de trésorerie, et
+  « Tous les comptes » de l'écran Opérations (les lignes étrangères y portent le
+  code de leur devise). Un compte étranger seul reste dans sa devise.
+- Virement entre devises différentes : le montant reçu doit être saisi (la somme
+  réellement créditée par la banque), pour que les deux écritures restent justes.
+- Un prêt ne peut pas être payé depuis un compte en devise étrangère. Supprimer
+  une devise encore utilisée par un compte est refusé.
+- Données : nouvelle table `currencies` (schéma local **v9**, ajout sans
+  conversion) incluse dans la sauvegarde ; une sauvegarde d'avant les devises ne
+  vide pas celles qui existent.
+- Non repris du logiciel de référence : la TVA par catégorie (usage professionnel,
+  hors du périmètre personnel) ; les couleurs de catégorie sont traitées avec la
+  refonte UX/UI.
+
 ## Version 2.8.0 — 10 octobre 2026
 
 Lot de cinq améliorations, développées en parallèle puis fusionnées.

@@ -2,11 +2,12 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { accountService } from '../services/accountService';
+import { currencyService } from '../services/currencyService';
 import { payeeService, paymentMethodService, categoryService } from '../services/referentialService';
 import { assetService, projectService } from '../services/patrimoineService';
 import { useStore } from '../store/useStore';
 import type {
-  Account, Asset, Category, CategoryGroup, Database, Payee, PaymentMethod, Project, Cents, Ymd,
+  Account, Asset, Category, CategoryGroup, Currency, Database, Payee, PaymentMethod, Project, Cents, Ymd,
 } from '../types';
 
 // Références stables : un littéral [] créé à chaque rendu casserait la
@@ -17,6 +18,8 @@ const NO_METHODS: PaymentMethod[] = [];
 const NO_CATS: Category[] = [];
 const NO_GROUPS: CategoryGroup[] = [];
 const NO_BALANCES: Record<string, Cents> = {};
+const NO_CURRENCIES: Currency[] = [];
+const NO_RATES: Record<string, number> = {};
 const NO_ASSETS: Asset[] = [];
 const NO_PROJECTS: Project[] = [];
 
@@ -43,6 +46,20 @@ export function useAccounts(dbId?: string, includeArchived = false): Account[] {
     () => (dbId ? accountService.list(dbId, includeArchived) : Promise.resolve([])),
     [dbId, includeArchived], NO_ACCOUNTS,
   ) ?? NO_ACCOUNTS;
+}
+
+/** Devises étrangères de la base. */
+export function useCurrencies(dbId?: string): Currency[] {
+  return useLiveQuery(
+    () => (dbId ? currencyService.list(dbId) : Promise.resolve(NO_CURRENCIES)), [dbId], NO_CURRENCIES,
+  ) ?? NO_CURRENCIES;
+}
+
+/** Taux de chaque compte vers la devise de la base (identifiant de compte → taux). */
+export function useRates(dbId?: string): Record<string, number> {
+  return useLiveQuery(
+    () => (dbId ? currencyService.rates(dbId) : Promise.resolve(NO_RATES)), [dbId], NO_RATES,
+  ) ?? NO_RATES;
 }
 
 export function useBalances(dbId?: string, upTo?: Ymd): Record<string, Cents> {

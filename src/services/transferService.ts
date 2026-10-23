@@ -15,12 +15,26 @@ export const transferService = {
   async create(input: {
     dbId: string; fromAccountId: string; toAccountId: string;
     date: Ymd; amountCents: Cents; label?: string; paymentMethodId?: string;
+    /**
+     * Montant crédité, dans la devise du compte destinataire. Obligatoire quand les
+     * deux comptes n'ont pas la même devise : le taux réellement appliqué par la
+     * banque n'est pas celui, indicatif, des réglages.
+     */
+    receivedAmountCents?: Cents;
   }): Promise<{ debit: Operation; credit: Operation }> {
     if (input.fromAccountId === input.toAccountId) {
       throw new Error('Le compte source et le compte destinataire doivent être différents.');
     }
     const amount = Math.abs(input.amountCents);
     if (amount <= 0) throw new Error('Le montant du virement doit être supérieur à zéro.');
+
+    const [from, to] = await Promise.all([db.accounts.get(input.fromAccountId), db.accounts.get(input.toAccountId)]);
+    let received = amount;
+    if ((from?.currency ?? '') !== (to?.currency ?? '')) {
+      const r = Math.abs(input.receivedAmountCents ?? 0);
+      if (r <= 0) throw new Error('Les deux comptes n’ont pas la même devise : indiquez le montant reçu.');
+      received = r;
+    }
 
     const now = stamp();
     const transferId = uid();
@@ -34,7 +48,7 @@ export const transferService = {
       label: input.label ?? 'Virement émis',
     };
     const credit: Operation = {
-      ...base, id: uid(), accountId: input.toAccountId, amountCents: amount,
+      ...base, id: uid(), accountId: input.toAccountId, amountCents: received,
       label: input.label ?? 'Virement reçu',
     };
     await db.transaction('rw', db.operations, async () => {

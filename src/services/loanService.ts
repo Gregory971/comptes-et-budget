@@ -52,6 +52,7 @@ export const loanService = {
     const funding = await db.accounts.get(input.fundingAccountId);
     if (!funding || funding.dbId !== input.dbId) throw new Error('Le compte de financement est introuvable.');
     if (funding.type === 'pret') throw new Error('Le compte de financement ne peut pas être un autre prêt.');
+    if (funding.currency) throw new Error('Le compte de financement doit être dans la devise de la base : les prêts ne sont pas suivis en devise étrangère.');
 
     const terms: LoanTerms = {
       principalCents: input.principalCents, rateBp: input.rateBp, months: input.months,

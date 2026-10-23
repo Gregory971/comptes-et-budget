@@ -1,4 +1,5 @@
 import { db, uid, stamp } from './db';
+import { convert, currencyService } from './currencyService';
 import type { Account, AccountType, Ymd, Cents } from '../types';
 
 /** Favoris d'abord, puis par groupe (sans groupe en dernier), puis par nom. */
@@ -35,7 +36,7 @@ export const accountService = {
   async create(input: {
     dbId: string; name: string; type: AccountType;
     initialBalanceCents: Cents; startDate: Ymd; logo?: string;
-    group?: string; number?: string; favorite?: boolean; hidden?: boolean;
+    group?: string; number?: string; favorite?: boolean; hidden?: boolean; currency?: string;
   }): Promise<Account> {
     const acc: Account = { id: uid(), archived: false, updatedAt: stamp(), ...input };
     await db.accounts.add(acc);
@@ -80,7 +81,10 @@ export const accountService = {
 
   /** Somme des soldes des comptes actifs, hors prêts (dettes). */
   async totalBalance(dbId: string, upTo?: Ymd): Promise<Cents> {
-    const [balances, accounts] = await Promise.all([this.balances(dbId, upTo), this.list(dbId)]);
-    return accounts.filter(isCash).reduce((s, a) => s + (balances[a.id] ?? 0), 0);
+    const [balances, accounts, rates] = await Promise.all([
+      this.balances(dbId, upTo), this.list(dbId), currencyService.rates(dbId),
+    ]);
+    // Chaque compte est converti au taux de sa devise : le total est en devise de la base.
+    return accounts.filter(isCash).reduce((s, a) => s + convert(balances[a.id] ?? 0, rates[a.id] ?? 1), 0);
   },
 };

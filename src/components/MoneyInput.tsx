@@ -10,8 +10,10 @@ import { parseEuro, centsToInput, type Cents } from '../utils/money';
  * et sans message. Le champ accepte désormais la virgule comme le point, et
  * signale explicitement une saisie invalide.
  */
-export function MoneyInput({ label, valueCents, onChange, autoFocus, allowNegative, required }: {
+export function MoneyInput({ label, ariaLabel, valueCents, onChange, autoFocus, allowNegative, required }: {
   label?: string;
+  /** Nom accessible quand aucun libellé visible n'est affiché. */
+  ariaLabel?: string;
   valueCents: Cents | null;
   onChange: (cents: Cents | null) => void;
   autoFocus?: boolean;
@@ -43,6 +45,7 @@ export function MoneyInput({ label, valueCents, onChange, autoFocus, allowNegati
       {label && <label htmlFor={id}>{label}</label>}
       <input
         id={id}
+        aria-label={label ? undefined : ariaLabel}
         inputMode="decimal"
         autoFocus={autoFocus}
         placeholder="0,00"

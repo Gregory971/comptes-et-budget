@@ -20,7 +20,8 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
 ## Phases suivantes (ordre de priorité)
 2. (faite) Prêts et emprunts (capital, taux, mensualité, durée ; ventilation capital/intérêts),
    groupes de comptes, favoris, comptes masqués.
-3. Devises et taux de change ; ventilation multiple d'une opération ; TVA ; couleurs de catégorie.
+3. (faite) Devises et taux de change ; ventilation multiple d'une opération. TVA écartée
+   (usage professionnel) ; couleurs de catégorie renvoyées à la phase 10.
 4. Titres et placements (achat, vente, dividendes, frais, plus-values latentes et réalisées,
    cotations saisies ou importées).
 5. Échanges : export CSV / Excel / QIF / OFX ; import QIF, profils d'import mémorisés,

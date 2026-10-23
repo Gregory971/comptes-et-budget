@@ -1,5 +1,6 @@
 import { db, uid, stamp } from './db';
-import type { Operation, Kind, Ymd, Cents } from '../types';
+import { touchesCategory, validateSplits } from '../utils/splits';
+import type { Operation, OperationSplit, Kind, Ymd, Cents } from '../types';
 
 export interface OperationInput {
   dbId: string; accountId: string; date: Ymd; amountCents: Cents; kind: Kind;
@@ -8,6 +9,12 @@ export interface OperationInput {
   /** Rattachement facultatif à un bien du patrimoine ou à un projet d'épargne. */
   assetId?: string; projectId?: string;
   transferId?: string;
+  /**
+   * Ventilation multiple, parts en MONTANTS POSITIFS : le signe est dérivé du
+   * type de l'opération, comme pour le montant. Au moins deux parts, dont la
+   * somme égale le montant. `categoryId` est alors ignoré.
+   */
+  splits?: OperationSplit[];
 }
 
 /**
@@ -30,12 +37,28 @@ export interface OpFilter {
   includeTransfers?: boolean;
 }
 
+/**
+ * Applique le signe de l'opération aux parts d'une ventilation et la valide.
+ * Renvoie undefined quand il n'y a rien à ventiler.
+ */
+function normalizeSplits(kind: Kind, amountCents: Cents, splits?: OperationSplit[]): OperationSplit[] | undefined {
+  if (!splits || splits.length === 0) return undefined;
+  if (kind === 'virement') throw new Error('Un virement ne peut pas être ventilé par catégorie.');
+  const parts = splits.map(s => ({ ...s, amountCents: signed(kind, s.amountCents) }));
+  const problem = validateSplits(amountCents, parts);
+  if (problem) throw new Error(problem);
+  return parts;
+}
+
 export const operationService = {
   async create(input: OperationInput): Promise<Operation> {
     const now = stamp();
+    const amountCents = signed(input.kind, input.amountCents);
+    const splits = normalizeSplits(input.kind, amountCents, input.splits);
     const op: Operation = {
       id: uid(), checked: false, createdAt: now, updatedAt: now,
-      ...input, amountCents: signed(input.kind, input.amountCents),
+      ...input, amountCents, splits,
+      categoryId: splits ? undefined : input.categoryId,
     };
     await db.operations.add(op);
     return op;
@@ -46,8 +69,19 @@ export const operationService = {
     if (!cur) return;
     const kind = patch.kind ?? cur.kind;
     const raw = patch.amountCents ?? Math.abs(cur.amountCents);
+    const amountCents = signed(kind, raw);
+
+    // Sans nouvelle ventilation, celle qui existe doit rester juste : changer le
+    // montant ou le sens d'une opération ventilée l'invaliderait en silence.
+    const splitsGiven = 'splits' in patch;
+    if (!splitsGiven && cur.splits?.length && (amountCents !== cur.amountCents)) {
+      throw new Error('Le montant ne correspond plus à la ventilation : modifiez la ventilation en même temps.');
+    }
+    const splits = splitsGiven ? normalizeSplits(kind, amountCents, patch.splits) : cur.splits;
     await db.operations.update(id, {
-      ...patch, kind, amountCents: signed(kind, raw), updatedAt: stamp(),
+      ...patch, kind, amountCents, splits,
+      categoryId: splits ? undefined : ('categoryId' in patch ? patch.categoryId : cur.categoryId),
+      updatedAt: stamp(),
     });
   },
 
@@ -84,7 +118,7 @@ export const operationService = {
     return rows
       .filter(o => !o.deletedAt)
       .filter(o => (f.accountId ? o.dbId === dbId : true))
-      .filter(o => (f.categoryId ? o.categoryId === f.categoryId : true))
+      .filter(o => (f.categoryId ? touchesCategory(o, f.categoryId) : true))
       .filter(o => (f.payeeId ? o.payeeId === f.payeeId : true))
       .filter(o => (f.assetId ? o.assetId === f.assetId : true))
       .filter(o => (f.projectId ? o.projectId === f.projectId : true))
@@ -104,7 +138,8 @@ export const operationService = {
   ): Promise<number> {
     const rows = await db.operations.where('[dbId+date]')
       .between([dbId, '0000-01-01'], [dbId, '9999-12-31'], true, true).toArray();
-    return rows.filter(o => !o.deletedAt && o[field] === id).length;
+    return rows.filter(o => !o.deletedAt
+      && (field === 'categoryId' ? touchesCategory(o, id) : o[field] === id)).length;
   },
 
   /** Total signé des opérations rattachées à un bien ou à un projet. */

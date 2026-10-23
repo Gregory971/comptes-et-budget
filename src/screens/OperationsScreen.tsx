@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useStore } from '../store/useStore';
-import { useAccounts, useReferentials } from '../hooks/useData';
+import { useAccounts, useRates, useReferentials } from '../hooks/useData';
 import { Layout } from '../components/Layout';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ImportButton } from '../components/ImportButton';
@@ -10,7 +10,9 @@ import { operationService } from '../services/operationService';
 import { forecastService, type ForecastLine } from '../services/forecastService';
 import { backupService } from '../services/backupService';
 import { formatNum, formatEur } from '../utils/money';
+import { convert } from '../services/currencyService';
 import { formatFr, monthLabel, today } from '../utils/date';
+import { isSplit, operationCategoryName, splitSummary } from '../utils/splits';
 import type { Database, Operation } from '../types';
 
 type Mode = 'reel' | 'previsionnel';
@@ -34,6 +36,8 @@ export function OperationsScreen({ database }: { database: Database }) {
   const region = database.holidayRegion;
   const setScreen = useStore(s => s.setScreen);
   const accounts = useAccounts(dbId);
+  const allAccounts = useAccounts(dbId, true);
+  const rates = useRates(dbId);
   const ref = useReferentials(dbId);
 
   const [mode, setMode] = useState<Mode>('reel');
@@ -55,12 +59,17 @@ export function OperationsScreen({ database }: { database: Database }) {
     [dbId, accountId, anchorKey, region], undefined,
   );
 
+  // « Tous les comptes » additionne des devises : les cumuls sont en devise de la base,
+  // alors qu'un compte seul reste dans sa devise (voir currencyService).
+  const k = useCallback((accId: string) => (accountId ? 1 : rates[accId] ?? 1), [accountId, rates]);
+  const currencyById = useMemo(() => new Map(allAccounts.map(a => [a.id, a.currency])), [allAccounts]);
+
   const rows = useMemo<Row[]>(() => {
     if (!data) return [];
     const out: Row[] = [];
     let run = data.openingCents;
     for (const o of data.operations) {
-      run += o.amountCents;
+      run += convert(o.amountCents, k(o.accountId));
       out.push({ type: 'reel', key: o.id, o, solde: run });
     }
     if (mode === 'previsionnel') {
@@ -70,7 +79,7 @@ export function OperationsScreen({ database }: { database: Database }) {
       }
     }
     return out;
-  }, [data, mode]);
+  }, [data, mode, k]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -82,15 +91,17 @@ export function OperationsScreen({ database }: { database: Database }) {
         (o.reference ?? '').toLowerCase().includes(q) ||
         (o.note ?? '').toLowerCase().includes(q) ||
         ref.catName(o.categoryId).toLowerCase().includes(q) ||
+        splitSummary(o, ref.catName).toLowerCase().includes(q) ||
         ref.payeeName(o.payeeId).toLowerCase().includes(q);
     });
   }, [rows, search, ref]);
 
   const list = data?.operations ?? [];
-  const debits = list.reduce((s, o) => (o.amountCents < 0 ? s - o.amountCents : s), 0);
-  const credits = list.reduce((s, o) => (o.amountCents >= 0 ? s + o.amountCents : s), 0);
+  const conv = (o: Operation) => convert(o.amountCents, k(o.accountId));
+  const debits = list.reduce((s, o) => (o.amountCents < 0 ? s - conv(o) : s), 0);
+  const credits = list.reduce((s, o) => (o.amountCents >= 0 ? s + conv(o) : s), 0);
   const pointed = (data?.openingCents ?? 0) +
-    list.reduce((s, o) => (o.checked ? s + o.amountCents : s), 0);
+    list.reduce((s, o) => (o.checked ? s + conv(o) : s), 0);
   const selected = list.find(o => o.id === selectedId) ?? null;
 
   const actions = (
@@ -170,6 +181,7 @@ export function OperationsScreen({ database }: { database: Database }) {
           <tbody>
             {visible.map(r => r.type === 'reel'
               ? <RealRow key={r.key} o={r.o} solde={r.solde} ref_={ref}
+                  currency={accountId ? undefined : currencyById.get(r.o.accountId)}
                   selected={selectedId === r.o.id}
                   onSelect={() => setSelectedId(r.o.id)}
                   onEdit={() => r.o.kind !== 'virement' && setEditing(r.o)}
@@ -207,7 +219,7 @@ export function OperationsScreen({ database }: { database: Database }) {
               accountId: editing.accountId, payeeId: editing.payeeId, categoryId: editing.categoryId,
               paymentMethodId: editing.paymentMethodId, label: editing.label,
               reference: editing.reference, note: editing.note,
-              assetId: editing.assetId, projectId: editing.projectId,
+              assetId: editing.assetId, projectId: editing.projectId, splits: editing.splits,
             }}
             onCancel={() => setEditing(null)}
             onSubmit={async (input) => { await operationService.update(editing.id, input); setEditing(null); }} />
@@ -223,7 +235,7 @@ export function OperationsScreen({ database }: { database: Database }) {
               payeeId: duplicating.payeeId, categoryId: duplicating.categoryId,
               paymentMethodId: duplicating.paymentMethodId, label: duplicating.label,
               reference: duplicating.reference, note: duplicating.note,
-              assetId: duplicating.assetId, projectId: duplicating.projectId,
+              assetId: duplicating.assetId, projectId: duplicating.projectId, splits: duplicating.splits,
             }}
             onCancel={() => setDuplicating(null)}
             onSubmit={async (input) => { await operationService.create({ dbId, ...input }); setDuplicating(null); }} />
@@ -250,12 +262,15 @@ export function OperationsScreen({ database }: { database: Database }) {
 
 type Refs = ReturnType<typeof useReferentials>;
 
-function RealRow({ o, solde, ref_, selected, onSelect, onEdit, onDelete }: {
+function RealRow({ o, solde, ref_, currency, selected, onSelect, onEdit, onDelete }: {
   o: Operation; solde: number; ref_: Refs; selected: boolean;
+  /** Devise du compte quand elle diffère de celle de la base (vue « Tous les comptes »). */
+  currency?: string;
   onSelect: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const c = ref_.cat(o.categoryId);
   const isTransfer = o.kind === 'virement';
+  const split = isSplit(o);
   return (
     <tr className={selected ? 'sel' : ''} tabIndex={0} aria-selected={selected}
       onClick={onSelect} onDoubleClick={onEdit}
@@ -272,12 +287,14 @@ function RealRow({ o, solde, ref_, selected, onSelect, onEdit, onDelete }: {
         </button>
       </td>
       <td><div className="cat-cell">
-        <span className="em" aria-hidden="true">{isTransfer ? '🔁' : c?.icon ?? '🏷️'}</span>
-        <span>{isTransfer ? 'Virement' : c?.name ?? 'Non catégorisé'}
+        <span className="em" aria-hidden="true">{isTransfer ? '🔁' : split ? '🧩' : c?.icon ?? '🏷️'}</span>
+        <span>{isTransfer ? 'Virement' : split ? operationCategoryName(o, ref_.catName) : c?.name ?? 'Non catégorisé'}
+          {split && <span className="muted" style={{ fontSize: 11, display: 'block' }}>{splitSummary(o, ref_.catName)}</span>}
           {o.label && <span className="muted" style={{ fontSize: 11, display: 'block' }}>{o.label}</span>}
           {o.note && <span className="muted" style={{ fontSize: 11, display: 'block', fontStyle: 'italic' }}>{o.note}</span>}
         </span></div></td>
-      <td className={'num ' + (o.amountCents < 0 ? 'neg' : 'pos')}>{formatNum(o.amountCents)}</td>
+      <td className={'num ' + (o.amountCents < 0 ? 'neg' : 'pos')}>{formatNum(o.amountCents)}
+        {currency && <span className="muted" style={{ fontSize: 11, display: 'block' }}>{currency}</span>}</td>
       <td className="num">{formatNum(solde)}
         <span className={'dot ' + (solde >= 0 ? 'g' : 'r')} aria-hidden="true"
           style={{ marginLeft: 6, marginRight: 0 }} /></td>
