@@ -16,6 +16,7 @@ const NAV: { key: Screen; label: string; ic: string }[] = [
   { key: 'operations', label: 'Opérations', ic: '🛒' },
   { key: 'echeances', label: 'Échéances', ic: '⏰' },
   { key: 'budget', label: 'Budget', ic: '📊' },
+  { key: 'placements', label: 'Placements', ic: '💹' },
   { key: 'biens', label: 'Biens / Projets', ic: '✈️' },
   { key: 'bilans', label: 'Bilan', ic: '📈' },
   { key: 'preferences', label: 'Préférences', ic: '⚙️' },

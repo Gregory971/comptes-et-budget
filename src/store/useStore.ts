@@ -4,7 +4,7 @@ import type { Profile } from '../types';
 
 export type Screen =
   | 'accueil' | 'comptes' | 'operations' | 'echeances'
-  | 'budget' | 'biens' | 'bilans' | 'preferences' | 'comptabiliser';
+  | 'budget' | 'placements' | 'biens' | 'bilans' | 'preferences' | 'comptabiliser';
 
 /**
  * État de session uniquement (écran courant, base active).

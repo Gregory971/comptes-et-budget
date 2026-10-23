@@ -87,6 +87,45 @@ export interface Account extends Tracked {
   currency?: string;
 }
 
+/** Titre financier suivi dans « Placements » (action, ETF, fonds…). */
+export interface Security extends Tracked {
+  id: string; dbId: string;
+  name: string;
+  /** ISIN, code ou symbole. */
+  symbol?: string;
+  archived: boolean;
+}
+
+export type SecurityTxType = 'achat' | 'vente' | 'dividende' | 'ajustement';
+
+/**
+ * Mouvement sur un titre. Pour un achat ou une vente : `quantity` et `unitPrice`
+ * (euros par part, décimaux), `amountCents` = montant brut, `feesCents` = frais.
+ * Dividende : `amountCents`. Ajustement (division, attribution gratuite,
+ * regroupement) : `quantity` signée, sans montant.
+ */
+export interface SecurityTx extends Tracked {
+  id: string; dbId: string; securityId: string;
+  date: Ymd;
+  type: SecurityTxType;
+  quantity: number;
+  unitPrice: number;
+  feesCents: Cents;
+  amountCents: Cents;
+  /** Écritures bancaires créées avec le mouvement ; supprimées avec lui. */
+  operationIds?: string[];
+  note?: string;
+  createdAt: string;
+}
+
+/** Cours d'un titre à une date (historique des cotations). */
+export interface SecurityPrice extends Tracked {
+  id: string; dbId: string; securityId: string;
+  date: Ymd;
+  /** Euros par part. */
+  price: number;
+}
+
 /** Devise étrangère de la base, avec son taux de change vers la devise de la base. */
 export interface Currency extends Tracked {
   id: string; dbId: string;

@@ -52,6 +52,31 @@ Plan complet : `docs/PLAN-EDITION-BUREAU.md`.
   plutôt que de la rendre fausse. Un virement ne se ventile pas.
 - Données : champ facultatif `splits` sur les opérations, aucune migration.
 
+### Placements
+
+- Nouvel écran **Placements** : titres (action, ETF, fonds), mouvements et
+  cotations. Achat, vente, dividende, ajustement du nombre de parts (division,
+  attribution gratuite, regroupement) et actualisation du cours.
+- Position **recalculée à chaque lecture** d'après les mouvements, jamais stockée :
+  quantité, prix de revient unitaire moyen pondéré (PRU, frais compris),
+  plus-values réalisées (nettes de frais), plus-values latentes au dernier cours,
+  dividendes, frais. Totaux du portefeuille en tête d'écran.
+- Garde-fous : pas de vente à découvert (contrôlée à la date du mouvement, même
+  antidatée), pas de suppression d'un achat dont une vente dépend, pas de
+  quantité négative, cours nul refusé à l'achat (utiliser l'ajustement).
+- Écritures bancaires facultatives : en désignant un compte, un achat crée une
+  dépense (brut + frais, ventilée pour isoler les frais dans leur catégorie), une
+  vente le produit net des frais, un dividende son montant — dans la même
+  transaction, et supprimées avec le mouvement. Titres en devise de la base.
+- Les cours sont ceux que vous saisissez : aucune cotation n'est récupérée sur
+  Internet (`connect-src 'none'`). Sans cours saisi, le dernier cours d'un achat
+  ou d'une vente sert de repère.
+- Données : tables `securities`, `securityTxs`, `securityPrices` (schéma local
+  **v10**, ajout sans conversion), incluses dans la sauvegarde ; une sauvegarde
+  d'avant les placements ne les vide pas.
+- Limites : pas d'import de cotations par fichier pour l'instant ; le portefeuille
+  n'est pas encore repris dans le patrimoine de « Biens / Projets ».
+
 ### Devises
 
 - Devises étrangères et taux de change vers la devise de la base, saisis à la

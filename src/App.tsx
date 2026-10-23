@@ -16,6 +16,7 @@ import { EcheancesScreen } from './screens/EcheancesScreen';
 import { BilansScreen } from './screens/BilansScreen';
 import { BudgetScreen } from './screens/BudgetScreen';
 import { BiensScreen } from './screens/BiensScreen';
+import { PlacementsScreen } from './screens/PlacementsScreen';
 
 export default function App() {
   const screen = useStore(s => s.screen);
@@ -63,6 +64,7 @@ export default function App() {
     comptabiliser: <ComptabiliserScreen database={database} />,
     budget: <BudgetScreen database={database} />,
     bilans: <BilansScreen database={database} />,
+    placements: <PlacementsScreen database={database} />,
     biens: <BiensScreen database={database} />,
     preferences: <PreferencesScreen database={database} />,
   }[screen];

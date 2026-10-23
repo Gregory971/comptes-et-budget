@@ -22,8 +22,9 @@ sauvegarde » au premier lancement, ou bouton Importer (fusion ou remplacement).
    groupes de comptes, favoris, comptes masqués.
 3. (faite) Devises et taux de change ; ventilation multiple d'une opération. TVA écartée
    (usage professionnel) ; couleurs de catégorie renvoyées à la phase 10.
-4. Titres et placements (achat, vente, dividendes, frais, plus-values latentes et réalisées,
-   cotations saisies ou importées).
+4. (faite, hors import de cotations) Titres et placements (achat, vente, dividendes, frais,
+   plus-values latentes et réalisées, cotations saisies). L'import de cotations par fichier
+   viendra avec la phase 5.
 5. Échanges : export CSV / Excel / QIF / OFX ; import QIF, profils d'import mémorisés,
    détection automatique des virements.
 6. Maintenance : fusion de catégories et de tiers, épuration des tiers, remplacement en masse,

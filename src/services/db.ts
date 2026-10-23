@@ -2,7 +2,7 @@ import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   Database, Account, Payee, CategoryGroup, Category,
   PaymentMethod, Operation, Preferences, Schedule, Budget, Asset, Project, Setting,
-  CategorizationRule, Currency,
+  CategorizationRule, Currency, Security, SecurityTx, SecurityPrice,
 } from '../types';
 import { normalizeYmd, today } from '../utils/date';
 import { toCents } from '../utils/money';
@@ -27,6 +27,10 @@ export class AppDB extends Dexie {
   categorizationRules!: Table<CategorizationRule, string>;
   /** Devises étrangères et leur taux (incluses dans la sauvegarde). */
   currencies!: Table<Currency, string>;
+  /** Titres, mouvements et cotations du suivi des placements (inclus dans la sauvegarde). */
+  securities!: Table<Security, string>;
+  securityTxs!: Table<SecurityTx, string>;
+  securityPrices!: Table<SecurityPrice, string>;
   /** Réglages propres à l'appareil : jamais exportés dans la sauvegarde. */
   settings!: Table<Setting, string>;
 
@@ -83,6 +87,12 @@ export class AppDB extends Dexie {
     // existantes démarrent sans devise et tous leurs comptes restent dans la
     // devise de la base.
     this.version(9).stores({ currencies: 'id, dbId, [dbId+code]' });
+    // v10 : suivi des placements (titres, mouvements, cotations). Ajout de tables.
+    this.version(10).stores({
+      securities: 'id, dbId',
+      securityTxs: 'id, dbId, securityId, [securityId+date]',
+      securityPrices: 'id, dbId, securityId, [securityId+date]',
+    });
   }
 }
 

@@ -6,6 +6,7 @@ import { normalizeYmd, today, toYmd } from '../utils/date';
 import type {
   Database, Account, Payee, CategoryGroup, Category, PaymentMethod,
   Operation, Preferences, Schedule, Budget, Asset, Project, CategorizationRule, Currency,
+  Security, SecurityTx, SecurityPrice,
 } from '../types';
 
 export const BACKUP_VERSION = 3;
@@ -35,6 +36,10 @@ export interface Backup {
   categorizationRules?: CategorizationRule[];
   /** Devises étrangères (ajoutées après la v3 du format : absentes d'un fichier antérieur). */
   currencies?: Currency[];
+  /** Suivi des placements (ajouté après la v3 du format : absent d'un fichier antérieur). */
+  securities?: Security[];
+  securityTxs?: SecurityTx[];
+  securityPrices?: SecurityPrice[];
 }
 
 type TableName = Exclude<keyof Backup, 'format' | 'version' | 'schemaVersion' | 'exportedAt' | 'database'>;
@@ -58,6 +63,9 @@ const TABLE_MAP = {
   projects: () => db.projects,
   categorizationRules: () => db.categorizationRules,
   currencies: () => db.currencies,
+  securities: () => db.securities,
+  securityTxs: () => db.securityTxs,
+  securityPrices: () => db.securityPrices,
 } as const satisfies Record<TableName, () => { name: string }>;
 
 const TABLES = Object.keys(TABLE_MAP) as TableName[];
@@ -69,7 +77,9 @@ const TABLES = Object.keys(TABLE_MAP) as TableName[];
  * suppression (les règles apprises ne doivent pas disparaître parce qu'on
  * restaure un fichier d'avant leur existence). Un tableau vide, lui, vide bien.
  */
-const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>(['categorizationRules', 'currencies']);
+const OPTIONAL_TABLES: ReadonlySet<TableName> = new Set<TableName>([
+  'categorizationRules', 'currencies', 'securities', 'securityTxs', 'securityPrices',
+]);
 
 type AnyRow = { id: string; dbId: string; updatedAt?: string };
 const tableOf = (name: TableName) =>
@@ -360,5 +370,8 @@ export function upgradeBackup(b: Backup): Backup {
     // Optionnel : laissé absent plutôt que forcé à [] (voir OPTIONAL_TABLES).
     ...(b.categorizationRules ? { categorizationRules: b.categorizationRules.map(r => row({ ...r })) } : {}),
     ...(b.currencies ? { currencies: b.currencies.map(c => row({ ...c })) } : {}),
+    ...(b.securities ? { securities: b.securities.map(r => row({ ...r })) } : {}),
+    ...(b.securityTxs ? { securityTxs: b.securityTxs.map(r => row({ ...r })) } : {}),
+    ...(b.securityPrices ? { securityPrices: b.securityPrices.map(r => row({ ...r })) } : {}),
   };
 }
